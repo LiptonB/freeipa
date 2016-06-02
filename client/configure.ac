@@ -220,7 +220,6 @@ dnl ---------------------------------------------------------------------------
 
 AC_CONFIG_FILES([
     Makefile
-    ../asn1/Makefile
     man/Makefile
 ])
 

@@ -331,7 +331,6 @@ AC_SUBST(LDFLAGS)
 
 AC_CONFIG_FILES([
     Makefile
-    ../asn1/Makefile
     ipa-kdb/Makefile
     ipa-sam/Makefile
     ipa-otpd/Makefile
