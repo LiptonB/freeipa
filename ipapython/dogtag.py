@@ -43,7 +43,7 @@ if six.PY3:
 Profile = collections.namedtuple('Profile', ['profile_id', 'description', 'store_issued', 'field_mappings'])
 FieldMapping = collections.namedtuple('FieldMapping', ['id', 'syntax_mapping', 'data_mappings'])
 MappingRuleset = collections.namedtuple('MappingRuleset', ['id', 'description', 'transformations'])
-TransformationRule = collections.namedtuple('TransformationRule', ['id', 'template', 'helper'])
+TransformationRule = collections.namedtuple('TransformationRule', ['id', 'template', 'helpers'])
 
 INCLUDED_PROFILES = (
     Profile(u'caIPAserviceCert', u'Standard profile for network services', True,
@@ -69,14 +69,14 @@ INCLUDED_MAPPING_RULESETS = (
 )
 
 INCLUDED_TRANSFORMATION_RULES = (
-    TransformationRule(u'syntaxSubjectOpenssl', u'py:syntaxSubjectOpenssl', u'openssl'),
-    TransformationRule(u'syntaxSubjectCertutil', u'py:syntaxSubjectCertutil', u'certutil'),
-    TransformationRule(u'dataHostOpenssl', u'py:dataHostOpenssl', u'openssl'),
-    TransformationRule(u'dataHostCertutil', u'py:dataHostCertutil', u'certutil'),
-    TransformationRule(u'syntaxSANOpenssl', u'py:syntaxSANOpenssl', u'openssl'),
-    TransformationRule(u'syntaxSANCertutil', u'py:syntaxSANCertutil', u'certutil'),
-    TransformationRule(u'dataDNSOpenssl', u'py:dataDNSOpenssl', u'openssl'),
-    TransformationRule(u'dataDNSCertutil', u'py:dataDNSCertutil', u'certutil'),
+    TransformationRule(u'syntaxSubjectOpenssl', u'py:syntaxSubjectOpenssl', [u'openssl']),
+    TransformationRule(u'syntaxSubjectCertutil', u'py:syntaxSubjectCertutil', [u'certutil']),
+    TransformationRule(u'dataHostOpenssl', u'py:dataHostOpenssl', [u'openssl']),
+    TransformationRule(u'dataHostCertutil', u'py:dataHostCertutil', [u'certutil']),
+    TransformationRule(u'syntaxSANOpenssl', u'py:syntaxSANOpenssl', [u'openssl']),
+    TransformationRule(u'syntaxSANCertutil', u'py:syntaxSANCertutil', [u'certutil']),
+    TransformationRule(u'dataDNSOpenssl', u'py:dataDNSOpenssl', [u'openssl']),
+    TransformationRule(u'dataDNSCertutil', u'py:dataDNSCertutil', [u'certutil']),
 )
 
 

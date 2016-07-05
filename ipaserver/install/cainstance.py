@@ -1832,7 +1832,7 @@ def import_included_profiles():
     api.Backend.ra_certprofile._read_password()
     api.Backend.ra_certprofile.override_port = 8443
 
-    for (rule_id, template, helper) in dogtag.INCLUDED_TRANSFORMATION_RULES:
+    for (rule_id, template, helpers) in dogtag.INCLUDED_TRANSFORMATION_RULES:
         dn = DN(('cn', rule_id),
             api.env.container_certtransformationrule, api.env.basedn)
         entry = conn.make_entry(
@@ -1840,7 +1840,7 @@ def import_included_profiles():
             objectclass=['ipacerttransformationrule'],
             cn=[rule_id],
             ipacerttransformationtemplate=[template],
-            ipacerttransformationhelper=[helper],
+            ipacerttransformationhelper=helpers,
         )
         __create_entry_if_new(conn, entry)
 
