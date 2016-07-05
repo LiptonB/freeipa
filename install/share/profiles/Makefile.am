@@ -3,6 +3,7 @@ NULL =
 appdir = $(IPA_DATA_DIR)/profiles
 app_DATA =				\
 	caIPAserviceCert.cfg		\
+	caIPAuserCert.cfg		\
 	IECUserRoles.cfg		\
 	$(NULL)
 

@@ -354,7 +354,9 @@ class certmapping(Backend):
                     for name in data_ruleset_names]
 
             values = [self.evaluate_ruleset(ruleset, helper, **command_args) for ruleset in data_rulesets]
-            field_values.append(self.evaluate_ruleset(syntax_ruleset, helper, values=values, **command_args))
+            real_values = [value for value in values if value is not None]
+            if real_values:
+                field_values.append(self.evaluate_ruleset(syntax_ruleset, helper, values=real_values, **command_args))
 
         formatter = self.FORMATTERS[helper]()
         formatted_values = formatter.format(field_values)
@@ -400,6 +402,12 @@ class datamapping(Backend):
             subject = u'CN=%s,%s' % (principal_name, self._subject_base())
         return subject.replace(u',', u'\n')
 
+    def dataUsernameOpenssl(self, extra_inputs):
+        principal = extra_inputs['principal']
+        principal_name = principal['krbprincipalname'][0].username
+        subject = u'CN=%s,%s' % (principal_name, self._subject_base())
+        return subject.replace(u',', u'\n')
+
     def syntaxSubjectCertutil(self, extra_inputs):
         arg = '-s %s' % pipes.quote(extra_inputs['values'][0])
         return arg
@@ -411,6 +419,12 @@ class datamapping(Backend):
         else:
             principal_name = principal['krbprincipalname'][0].hostname
             subject = 'CN=%s,%s' % (principal_name, self._subject_base())
+        return subject
+
+    def dataUsernameCertutil(self, extra_inputs):
+        principal = extra_inputs['principal']
+        principal_name = principal['krbprincipalname'][0].username
+        subject = u'CN=%s,%s' % (principal_name, self._subject_base())
         return subject
 
     def syntaxSANOpenssl(self, extra_inputs):
@@ -431,3 +445,17 @@ class datamapping(Backend):
         principal = extra_inputs['principal']
         principal_name = principal['krbprincipalname'][0].hostname
         return 'dns:%s' % principal_name
+
+    def dataEmailOpenssl(self, extra_inputs):
+        principal = extra_inputs['principal']
+        if 'mail' in principal:
+            return 'email=%s' % principal['mail'][0]
+        else:
+            return None
+
+    def dataEmailCertutil(self, extra_inputs):
+        principal = extra_inputs['principal']
+        if 'mail' in principal:
+            return 'email:%s' % principal['mail'][0]
+        else:
+            return None

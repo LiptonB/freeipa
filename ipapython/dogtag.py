@@ -48,12 +48,16 @@ TransformationRule = collections.namedtuple('TransformationRule', ['id', 'templa
 INCLUDED_PROFILES = (
     Profile(u'caIPAserviceCert', u'Standard profile for network services', True,
         [u'hostSubject', u'DNSSAN']),
+    Profile(u'caIPAuserCert', u'Standard profile for users', True,
+        [u'userSubject', u'emailSAN']),
     Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True, []),
 )
 
 INCLUDED_FIELD_MAPPINGS = (
     FieldMapping(u'hostSubject', u'syntaxSubject', [u'dataHostCN']),
+    FieldMapping(u'userSubject', u'syntaxSubject', [u'dataUsernameCN']),
     FieldMapping(u'DNSSAN', u'syntaxSAN', [u'dataDNS']),
+    FieldMapping(u'emailSAN', u'syntaxSAN', [u'dataEmail']),
 )
 
 INCLUDED_MAPPING_RULESETS = (
@@ -61,11 +65,16 @@ INCLUDED_MAPPING_RULESETS = (
         [u'syntaxSubjectOpenssl', u'syntaxSubjectCertutil']),
     MappingRuleset(u'dataHostCN', u'DN with the principal\'s hostname as the CommonName',
         [u'dataHostOpenssl', u'dataHostCertutil']),
+    MappingRuleset(u'dataUsernameCN', u'DN with the principal\'s username as the CommonName',
+        [u'dataUsernameOpenssl', u'dataUsernameCertutil']),
     MappingRuleset(u'syntaxSAN', u'Syntax for adding a Subject Alternate Name',
         [u'syntaxSANOpenssl', u'syntaxSANCertutil']),
     MappingRuleset(u'dataDNS',
         u'Constructs a SubjectAltName entry from the principal\'s hostname',
         [u'dataDNSOpenssl', u'dataDNSCertutil']),
+    MappingRuleset(u'dataEmail',
+        u'Constructs a SubjectAltName entry from the principal\'s email address',
+        [u'dataEmailOpenssl', u'dataEmailCertutil']),
 )
 
 INCLUDED_TRANSFORMATION_RULES = (
@@ -73,10 +82,14 @@ INCLUDED_TRANSFORMATION_RULES = (
     TransformationRule(u'syntaxSubjectCertutil', u'py:syntaxSubjectCertutil', [u'certutil']),
     TransformationRule(u'dataHostOpenssl', u'py:dataHostOpenssl', [u'openssl']),
     TransformationRule(u'dataHostCertutil', u'py:dataHostCertutil', [u'certutil']),
+    TransformationRule(u'dataUsernameOpenssl', u'py:dataUsernameOpenssl', [u'openssl']),
+    TransformationRule(u'dataUsernameCertutil', u'py:dataUsernameCertutil', [u'certutil']),
     TransformationRule(u'syntaxSANOpenssl', u'py:syntaxSANOpenssl', [u'openssl']),
     TransformationRule(u'syntaxSANCertutil', u'py:syntaxSANCertutil', [u'certutil']),
     TransformationRule(u'dataDNSOpenssl', u'py:dataDNSOpenssl', [u'openssl']),
     TransformationRule(u'dataDNSCertutil', u'py:dataDNSCertutil', [u'certutil']),
+    TransformationRule(u'dataEmailOpenssl', u'py:dataEmailOpenssl', [u'openssl']),
+    TransformationRule(u'dataEmailCertutil', u'py:dataEmailCertutil', [u'certutil']),
 )
 
 
