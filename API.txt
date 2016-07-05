@@ -762,7 +762,7 @@ output: Output('truncated', type=[<type 'bool'>])
 command: cert_get_requestdata/1
 args: 0,4,1
 option: Str('format')
-option: Str('principal')
+option: Principal('principal')
 option: Str('profile_id?')
 option: Str('version?')
 output: Output('result', type=[<type 'dict'>])

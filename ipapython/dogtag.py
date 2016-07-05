@@ -69,14 +69,14 @@ INCLUDED_MAPPING_RULESETS = (
 )
 
 INCLUDED_TRANSFORMATION_RULES = (
-    TransformationRule(u'syntaxSubjectOpenssl', u'one', u'openssl'),
-    TransformationRule(u'syntaxSubjectCertutil', u'two', u'certutil'),
-    TransformationRule(u'dataHostOpenssl', u'three', u'openssl'),
-    TransformationRule(u'dataHostCertutil', u'four', u'certutil'),
-    TransformationRule(u'syntaxSANOpenssl', u'five', u'openssl'),
-    TransformationRule(u'syntaxSANCertutil', u'six', u'certutil'),
-    TransformationRule(u'dataDNSOpenssl', u'seven', u'openssl'),
-    TransformationRule(u'dataDNSCertutil', u'eight', u'certutil'),
+    TransformationRule(u'syntaxSubjectOpenssl', u'py:syntaxSubjectOpenssl', u'openssl'),
+    TransformationRule(u'syntaxSubjectCertutil', u'py:syntaxSubjectCertutil', u'certutil'),
+    TransformationRule(u'dataHostOpenssl', u'py:dataHostOpenssl', u'openssl'),
+    TransformationRule(u'dataHostCertutil', u'py:dataHostCertutil', u'certutil'),
+    TransformationRule(u'syntaxSANOpenssl', u'py:syntaxSANOpenssl', u'openssl'),
+    TransformationRule(u'syntaxSANCertutil', u'py:syntaxSANCertutil', u'certutil'),
+    TransformationRule(u'dataDNSOpenssl', u'py:dataDNSOpenssl', u'openssl'),
+    TransformationRule(u'dataDNSCertutil', u'py:dataDNSCertutil', u'certutil'),
 )
 
 

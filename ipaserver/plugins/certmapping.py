@@ -1,13 +1,21 @@
+import pipes
+import re
 
 from ipalib import api
-from ipalib import DNParam, Str, Command
+from ipalib import errors
+from ipalib import Backend, DNParam, Str, Command
 from ipalib import output
+from ipalib.parameters import Principal
 from ipalib.plugable import Registry
 from ipalib.text import _
 from .baseldap import (
     LDAPCreate, LDAPObject, LDAPRetrieve, LDAPSearch, LDAPUpdate)
 from .certprofile import validate_profile_id
 
+import six
+
+if six.PY3:
+    unicode = str
 
 __doc__ = _("""
 Mappings from FreeIPA data to Certificate Signing Requests.
@@ -217,7 +225,7 @@ class cert_get_requestdata(Command):
     __doc__ = _('Gather data for a certificate signing request.')
 
     takes_options = (
-        Str('principal',
+        Principal('principal',
             label=_('Principal'),
             doc=_('Principal for this certificate (e.g. HTTP/test.example.com)'),
         ),
@@ -243,7 +251,183 @@ class cert_get_requestdata(Command):
         profile_id = kw.get('profile_id', self.Backend.ra.DEFAULT_PROFILE)
         helper = kw.get('format')
 
-        result = {'debug_output': u'test'}
+        try:
+            if principal.is_host:
+                principal_obj = api.Command.host_show(principal.hostname, all=True)
+            elif principal.is_service:
+                principal_obj = api.Command.service_show(unicode(principal), all=True)
+            elif principal.is_user:
+                principal_obj = api.Command.user_show(principal.username, all=True)
+        except errors.NotFound:
+            raise errors.NotFound(
+                reason=_("The principal for this request doesn't exist."))
+        principal_obj = principal_obj['result']
+
+        request_data = self.Backend.certmapping.get_request_data(principal_obj,
+                profile_id, helper)
+
+        result = {}
+        result['debug_output'] = unicode(request_data)
         return dict(
             result=result
         )
+
+class Formatter(object):
+    def __format__(self, values):
+        """
+        Combine the values into a string for a particular CSR generator.
+
+        :param values: list of unicode configuration statements
+
+        :returns: unicode string presenting the configuration in a form
+            suitable for input into the CSR generator.
+        """
+        raise NotImplementedError('Only subclasses of Formatter should be used')
+
+class OpenSSLFormatter(Formatter):
+    # TODO(blipton): What if we want a parenthesis in the section?
+    SECTION_RE = re.compile(r'%section\((.*?)\)', re.DOTALL)
+    EXTENSION_RE = re.compile(r'^ext:(.*)$', re.DOTALL+re.MULTILINE)
+
+    def _parse_sections(self, value, sections):
+        def process_section(match):
+            sec_name = 'sec%s' % len(sections)
+            sections.append(u'[%s]\n%s' % (sec_name, match.group(1)))
+            return sec_name
+
+        line = self.SECTION_RE.sub(process_section, value)
+        return line
+
+    def format(self, values):
+        all_lines = [u'[req]', u'prompt = no']
+        all_sections = []
+        all_extensions = []
+        for value in values:
+            match = self.EXTENSION_RE.match(value)
+            if match:
+                value = match.group(1)
+
+            line = self._parse_sections(value, all_sections)
+
+            if match:
+                all_extensions.append(line)
+            else:
+                all_lines.append(line)
+
+        if all_extensions:
+            all_lines.append(u'req_extensions = exts')
+            exts = u'\n'.join([u'[exts]'] + all_extensions)
+            all_sections.append(exts)
+
+        main_section = u'\n'.join(all_lines)
+
+        config = u'\n\n'.join([main_section] + all_sections)
+
+        return config
+
+class CertutilFormatter(Formatter):
+    def format(self, values):
+        return u'certutil -R %s' % u' '.join(values)
+
+@register()
+class certmapping(Backend):
+    FORMATTERS = {
+        'openssl': OpenSSLFormatter,
+        'certutil': CertutilFormatter,
+    }
+
+    def get_request_data(self, principal, profile_id, helper):
+        profile = api.Command.certprofile_show(profile_id, all=True)['result']
+
+        command_args = {'principal': principal, 'profile_id': profile_id}
+
+        field_values = []
+        # TODO(blipton): Maybe we only want to store the CN since that's a
+        # unique "id" field anyway
+        field_mappings = [api.Command.certfieldmappingrule_show(mapping['cn'])['result']
+                for mapping in profile['ipacertfieldmapping']]
+        for mapping in field_mappings:
+            syntax_ruleset_name = mapping['ipacertsyntaxmapping'][0]
+            syntax_ruleset = api.Command.certmappingrule_show(syntax_ruleset_name['cn'])['result']
+            data_ruleset_names = mapping['ipacertdatamapping']
+            data_rulesets = [api.Command.certmappingrule_show(name['cn'])['result']
+                    for name in data_ruleset_names]
+
+            values = [self.evaluate_ruleset(ruleset, helper, **command_args) for ruleset in data_rulesets]
+            field_values.append(self.evaluate_ruleset(syntax_ruleset, helper, values=values, **command_args))
+
+        formatter = self.FORMATTERS[helper]()
+        formatted_values = formatter.format(field_values)
+        return formatted_values
+
+    def evaluate_ruleset(self, ruleset, helper, **kwargs):
+        use_rule = None
+        for rule_dn in ruleset['ipacerttransformation']:
+            rule = api.Command.certtransformationrule_show(rule_dn['cn'])['result']
+            if helper in rule['ipacerttransformationhelper']:
+                use_rule = rule
+                break
+        if use_rule is None:
+            raise errors.NotFound(
+                    reason=_('No transformation in "%(ruleset)s" rule supports format "%(helper)s"')
+                    % {'ruleset': ruleset['cn'][0], 'helper': helper})
+
+        template = rule['ipacerttransformationtemplate'][0]
+        if template.startswith('py:'):
+            template = template[3:]
+            template_method = getattr(self.Backend.datamapping, template)
+            return template_method(kwargs)
+        else:
+            raise NotImplementedError('Only py rules allowed for now')
+
+@register()
+class datamapping(Backend):
+    def _subject_base(self):
+        config = api.Command['config_show']()['result']
+        subject_base = config['ipacertificatesubjectbase'][0]
+        return subject_base
+
+    def syntaxSubjectOpenssl(self, extra_inputs):
+        section = 'distinguished_name = %%section(%s)' % extra_inputs['values'][0]
+        return section
+
+    def dataHostOpenssl(self, extra_inputs):
+        principal = extra_inputs['principal']
+        if 'subject' in principal:
+            subject = principal['subject']
+        else:
+            principal_name = principal['krbprincipalname'][0].hostname
+            subject = u'CN=%s,%s' % (principal_name, self._subject_base())
+        return subject.replace(u',', u'\n')
+
+    def syntaxSubjectCertutil(self, extra_inputs):
+        arg = '-s %s' % pipes.quote(extra_inputs['values'][0])
+        return arg
+
+    def dataHostCertutil(self, extra_inputs):
+        principal = extra_inputs['principal']
+        if 'subject' in principal:
+            subject = principal['subject']
+        else:
+            principal_name = principal['krbprincipalname'][0].hostname
+            subject = 'CN=%s,%s' % (principal_name, self._subject_base())
+        return subject
+
+    def syntaxSANOpenssl(self, extra_inputs):
+        section = 'ext:subjectAltName=@%%section(%s)' % '\n'.join(extra_inputs['values'])
+        return section
+
+    def syntaxSANCertutil(self, extra_inputs):
+        san_list = ','.join(extra_inputs['values'])
+        arg = '--extSAN %s' % pipes.quote(san_list)
+        return arg
+
+    def dataDNSOpenssl(self, extra_inputs):
+        principal = extra_inputs['principal']
+        principal_name = principal['krbprincipalname'][0].hostname
+        return 'DNS=%s' % principal_name
+
+    def dataDNSCertutil(self, extra_inputs):
+        principal = extra_inputs['principal']
+        principal_name = principal['krbprincipalname'][0].hostname
+        return 'dns:%s' % principal_name
