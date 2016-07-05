@@ -4,7 +4,7 @@
 
 import re
 
-from ipalib import api, Bool, Str
+from ipalib import api, Bool, DNParam, Str
 from ipalib.plugable import Registry
 from .baseldap import (
     LDAPObject, LDAPSearch, LDAPCreate,
@@ -138,6 +138,12 @@ class certprofile(LDAPObject):
             label=_('Store issued certificates'),
             doc=_('Whether to store certs issued using this profile'),
         ),
+        DNParam('ipacertfieldmapping',
+            multivalue=True,
+            label=_('Cert field mapping'),
+            doc=_('Reference to mapping rules for cert generation'),
+            flags=('no_option',),
+        )
     )
 
     permission_filter_objectclasses = ['ipacertprofile']
