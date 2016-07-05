@@ -50,6 +50,7 @@ BuildRequires:  samba-devel >= %{samba_version}
 BuildRequires:  samba-python
 BuildRequires:  libtalloc-devel
 BuildRequires:  libtevent-devel
+BuildRequires:  python-jinja2
 %endif # ONLY_CLIENT
 BuildRequires:  nspr-devel
 BuildRequires:  nss-devel
@@ -214,6 +215,7 @@ Requires: dbus-python
 Requires: python-dns >= 1.11.1
 Requires: python-kdcproxy >= 0.3
 Requires: rpm-libs
+Requires: python-jinja2
 
 %description -n python2-ipaserver
 IPA is an integrated solution to provide centrally managed Identity (users,
