@@ -1813,6 +1813,14 @@ def __get_profile_config(profile_id):
     return ipautil.template_file(
         '/usr/share/ipa/profiles/{}.cfg'.format(profile_id), sub_dict)
 
+
+def __create_entry_if_new(conn, entry):
+    if not conn.entry_exists(entry.dn):
+        conn.add_entry(entry)
+        return True
+    return False
+
+
 def import_included_profiles():
     server_id = installutils.realm_to_serverid(api.env.realm)
     dogtag_uri = 'ldapi://%%2fvar%%2frun%%2fslapd-%s.socket' % server_id
@@ -1834,27 +1842,65 @@ def import_included_profiles():
     api.Backend.ra_certprofile._read_password()
     api.Backend.ra_certprofile.override_port = 8443
 
-    for (profile_id, desc, store_issued) in dogtag.INCLUDED_PROFILES:
-        dn = DN(('cn', profile_id),
-            api.env.container_certprofile, api.env.basedn)
-        try:
-            conn.get_entry(dn)
-            continue  # the profile is present
-        except errors.NotFound:
-            # profile not found; add it
-            entry = conn.make_entry(
-                dn,
-                objectclass=['ipacertprofile'],
-                cn=[profile_id],
-                description=[desc],
-                ipacertprofilestoreissued=['TRUE' if store_issued else 'FALSE'],
-            )
-            conn.add_entry(entry)
+    for (ruleset_id, description,
+            transformations) in dogtag.INCLUDED_MAPPING_RULESETS:
+        ruleset_dn = DN(('cn', ruleset_id),
+                        api.env.container_certmappingruleset, api.env.basedn)
+        entry = conn.make_entry(
+            ruleset_dn,
+            objectclass=['ipacertmappingruleset'],
+            cn=[ruleset_id],
+            description=[description],
+        )
 
+        if __create_entry_if_new(conn, entry):
+            for (rule_id, template, helpers) in transformations:
+                dn = DN(('cn', rule_id), ruleset_dn)
+                entry = conn.make_entry(
+                    dn,
+                    objectclass=['ipacerttransformationrule'],
+                    cn=[rule_id],
+                    ipacerttransformationtemplate=[template],
+                    ipacerttransformationhelper=helpers,
+                )
+                __create_entry_if_new(conn, entry)
+
+    for (profile_id, desc, store_issued,
+            field_mappings) in dogtag.INCLUDED_PROFILES:
+        profile_dn = DN(('cn', profile_id),
+                        api.env.container_certprofile, api.env.basedn)
+        entry = conn.make_entry(
+            profile_dn,
+            objectclass=['ipacertprofile'],
+            cn=[profile_id],
+            description=[desc],
+            ipacertprofilestoreissued=['TRUE' if store_issued else 'FALSE'],
+        )
+
+        if __create_entry_if_new(conn, entry):
             # Create the profile, replacing any existing profile of same name
             profile_data = __get_profile_config(profile_id)
             _create_dogtag_profile(profile_id, profile_data, overwrite=True)
             root_logger.info("Imported profile '%s'", profile_id)
+
+            for index, (syntax_mapping,
+                        data_mappings) in enumerate(field_mappings):
+                fieldmapping_dn = DN(('cn', u'field%s' % index), profile_dn)
+                syntax_dn = DN(
+                    ('cn', syntax_mapping),
+                    api.env.container_certmappingruleset, api.env.basedn)
+                data_dns = [
+                    DN(('cn', rule), api.env.container_certmappingruleset,
+                        api.env.basedn)
+                    for rule in data_mappings]
+                entry = conn.make_entry(
+                    fieldmapping_dn,
+                    objectclass=['ipacertfieldmappingrule'],
+                    cn=[fieldmapping_dn['cn']],
+                    ipacertsyntaxmapping=[syntax_dn],
+                    ipacertdatamapping=data_dns,
+                )
+                __create_entry_if_new(conn, entry)
 
     api.Backend.ra_certprofile.override_port = None
     conn.disconnect()
