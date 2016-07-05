@@ -124,6 +124,9 @@ DEFAULT_CONFIG = (
     ('container_locations', DN(('cn', 'locations'), ('cn', 'etc'))),
     ('container_ca', DN(('cn', 'cas'), ('cn', 'ca'))),
     ('container_dnsservers', DN(('cn', 'servers'), ('cn', 'dns'))),
+    ('container_certfieldmappingrule', DN(('cn', 'fieldmappingrules'), ('cn', 'ca'))),
+    ('container_certmappingruleset', DN(('cn', 'mappingrulesets'), ('cn', 'ca'))),
+    ('container_certtransformationrule', DN(('cn', 'transformationrules'), ('cn', 'ca'))),
 
     # Ports, hosts, and URIs:
     ('xmlrpc_uri', 'http://localhost:8888/ipa/xml'),

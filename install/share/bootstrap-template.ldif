@@ -482,3 +482,21 @@ changetype: add
 objectClass: nsContainer
 objectClass: top
 cn: cas
+
+dn: cn=fieldmappingrules,cn=ca,$SUFFIX
+changetype: add
+objectClass: nsContainer
+objectClass: top
+cn: fieldmappingrules
+
+dn: cn=mappingrulesets,cn=ca,$SUFFIX
+changetype: add
+objectClass: nsContainer
+objectClass: top
+cn: mappingrulesets
+
+dn: cn=transformationrules,cn=ca,$SUFFIX
+changetype: add
+objectClass: nsContainer
+objectClass: top
+cn: transformationrules

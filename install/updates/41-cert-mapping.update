@@ -1,0 +1,14 @@
+dn: cn=fieldmappingrules,cn=ca,$SUFFIX
+default: objectClass: nsContainer
+default: objectClass: top
+default: cn: fieldmappingrules
+
+dn: cn=mappingrulesets,cn=ca,$SUFFIX
+default: objectClass: nsContainer
+default: objectClass: top
+default: cn: mappingrulesets
+
+dn: cn=transformationrules,cn=ca,$SUFFIX
+default: objectClass: nsContainer
+default: objectClass: top
+default: cn: transformationrules

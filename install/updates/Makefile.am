@@ -40,6 +40,7 @@ app_DATA =				\
 	40-vault.update			\
 	41-caacl.update			\
 	41-lightweight-cas.update	\
+	41-cert-mapping.update		\
 	45-roles.update			\
 	50-7_bit_check.update	        \
 	50-dogtag10-migration.update	\
