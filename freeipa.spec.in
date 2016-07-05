@@ -507,6 +507,7 @@ Requires: python-custodia
 Requires: python-dns >= 1.11.1
 Requires: python-netifaces >= 0.10.4
 Requires: pyusb
+Requires: python-jinja2
 
 Conflicts: %{alt_name}-python < %{version}
 
@@ -1178,6 +1179,13 @@ fi
 %{_usr}/share/ipa/advise/legacy/*.template
 %dir %{_usr}/share/ipa/profiles
 %{_usr}/share/ipa/profiles/*.cfg
+%dir %{_usr}/share/ipa/csr
+%dir %{_usr}/share/ipa/csr/templates
+%{_usr}/share/ipa/csr/templates/*.tmpl
+%dir %{_usr}/share/ipa/csr/profiles
+%{_usr}/share/ipa/csr/profiles/*.json
+%dir %{_usr}/share/ipa/csr/rules
+%{_usr}/share/ipa/csr/rules/*.json
 %dir %{_usr}/share/ipa/ffextension
 %{_usr}/share/ipa/ffextension/bootstrap.js
 %{_usr}/share/ipa/ffextension/install.rdf
