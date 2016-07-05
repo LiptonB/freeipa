@@ -40,12 +40,57 @@ except ImportError:
 if six.PY3:
     unicode = str
 
-Profile = collections.namedtuple('Profile', ['profile_id', 'description', 'store_issued'])
+Profile = collections.namedtuple('Profile', [
+    'profile_id', 'description', 'store_issued', 'field_mappings'])
+FieldMapping = collections.namedtuple('FieldMapping', [
+    'syntax_mapping', 'data_mappings'])
+MappingRuleset = collections.namedtuple('MappingRuleset', [
+    'id', 'description', 'transformations'])
+TransformationRule = collections.namedtuple('TransformationRule', [
+    'id', 'template', 'helpers'])
 
-INCLUDED_PROFILES = {
-    Profile(u'caIPAserviceCert', u'Standard profile for network services', True),
-    Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True),
-    }
+INCLUDED_PROFILES = (
+    Profile(
+        u'caIPAserviceCert', u'Standard profile for network services', True,
+        [
+            FieldMapping(u'syntaxSubject', [u'dataHostCN']),
+            FieldMapping(u'syntaxSAN', [u'dataDNS']),
+        ]),
+    Profile(
+        u'IECUserRoles',
+        u'User profile that includes IECUserRoles extension from request',
+        True, []),
+)
+
+# TODO(blipton): Use the json file import method instead
+INCLUDED_MAPPING_RULESETS = (
+    MappingRuleset(
+        u'syntaxSubject', u'Syntax for adding a Subject Distinguished Name',
+        [
+            TransformationRule(u'syntaxSubjectOpenssl', u'one', [u'openssl']),
+            TransformationRule(
+                u'syntaxSubjectCertutil', u'two', [u'certutil']),
+        ]),
+    MappingRuleset(
+        u'dataHostCN', u'DN with the principal\'s hostname as the CommonName',
+        [
+            TransformationRule(u'dataHostOpenssl', u'three', [u'openssl']),
+            TransformationRule(u'dataHostCertutil', u'four', [u'certutil']),
+        ]),
+    MappingRuleset(
+        u'syntaxSAN', u'Syntax for adding a Subject Alternate Name',
+        [
+            TransformationRule(u'syntaxSANOpenssl', u'five', [u'openssl']),
+            TransformationRule(u'syntaxSANCertutil', u'six', [u'certutil']),
+        ]),
+    MappingRuleset(
+        u'dataDNS',
+        u'Constructs a SubjectAltName entry from the principal\'s hostname',
+        [
+            TransformationRule(u'dataDNSOpenssl', u'seven', [u'openssl']),
+            TransformationRule(u'dataDNSCertutil', u'eight', [u'certutil']),
+        ]),
+)
 
 DEFAULT_PROFILE = u'caIPAserviceCert'
 
@@ -125,7 +170,7 @@ def ca_status(ca_host=None):
 
 
 def https_request(host, port, url, secdir, password, nickname,
-        method='POST', headers=None, body=None, **kw):
+                  method='POST', headers=None, body=None, **kw):
     """
     :param method: HTTP request method (defalut: 'POST')
     :param url: The path (not complete URL!) to post to.
