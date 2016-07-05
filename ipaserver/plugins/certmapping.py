@@ -1,14 +1,27 @@
+#
+# Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+#
+
+import collections
+import jinja2
+import jinja2.ext
+import jinja2.sandbox
 
 from ipalib import api
-from ipalib import DNParam, Str, Command
+from ipalib import errors
+from ipalib import Backend, DNParam, Str, Command
 from ipalib import output
 from ipalib.parameters import Principal
 from ipalib.plugable import Registry
 from ipalib.text import _
-from .baseldap import (
-    LDAPCreate, LDAPObject, LDAPRetrieve, LDAPSearch, LDAPUpdate, LDAPDelete)
+from .baseldap import (LDAPCreate, LDAPObject, LDAPRetrieve, LDAPSearch,
+                       LDAPUpdate, LDAPDelete)
 from .certprofile import validate_profile_id
 
+import six
+
+if six.PY3:
+    unicode = str
 
 __doc__ = _("""
 Mappings from FreeIPA data to Certificate Signing Requests.
@@ -255,7 +268,182 @@ class cert_get_requestdata(Command):
         profile_id = kw.get('profile_id')
         helper = kw.get('format')
 
-        result = {'debug_output': u'test'}
+        try:
+            if principal.is_host:
+                principal_obj = api.Command.host_show(
+                    principal.hostname, all=True)
+            elif principal.is_service:
+                principal_obj = api.Command.service_show(
+                    unicode(principal), all=True)
+            elif principal.is_user:
+                principal_obj = api.Command.user_show(
+                    principal.username, all=True)
+        except errors.NotFound:
+            raise errors.NotFound(
+                reason=_("The principal for this request doesn't exist."))
+        principal_obj = principal_obj['result']
+
+        request_data = self.Backend.certmapping.get_request_data(
+            principal_obj, profile_id, helper)
+
+        result = {}
+        result.update(request_data)
         return dict(
             result=result
         )
+
+
+class IndexableUndefined(jinja2.Undefined):
+    def __getitem__(self, key):
+        return jinja2.Undefined(
+            hint=self._undefined_hint, obj=self._undefined_obj,
+            name=self._undefined_name, exc=self._undefined_exception)
+
+
+class Formatter(object):
+    def __init__(self, backend):
+        self.backend = backend
+        self.jinja2 = jinja2.sandbox.SandboxedEnvironment(
+            loader=jinja2.FileSystemLoader('/usr/share/ipa/csrtemplates'),
+            extensions=[jinja2.ext.ExprStmtExtension],
+            keep_trailing_newline=True, undefined=IndexableUndefined)
+
+        self.passthrough_globals = {}
+        self._define_passthrough('ipa.syntaxrule')
+        self._define_passthrough('ipa.datarule')
+
+    def _define_passthrough(self, call):
+
+        def passthrough(caller):
+            return u'{%% call %s() %%}%s{%% endcall %%}' % (call, caller())
+
+        parts = call.split('.')
+        current_level = self.passthrough_globals
+        for part in parts[:-1]:
+            if part not in current_level:
+                current_level[part] = {}
+            current_level = current_level[part]
+        current_level[parts[-1]] = passthrough
+
+    def format(self, syntax_rules, render_data):
+        """
+        Combine the values into a string for a particular CSR generator.
+
+        :param syntax_rules: list of prepared syntax rules to insert into the
+            template.
+        :param render_data: dict of data from LDAP for the final render.
+
+        :returns: unicode string presenting the configuration in a form
+            suitable for input into the CSR generator.
+        """
+        raise NotImplementedError('Formatter must be subclassed before using.')
+
+    def _format(self, base_template_name, base_template_params, render_data):
+        base_template = self.jinja2.get_template(
+            base_template_name, globals=self.passthrough_globals)
+        combined_template_source = base_template.render(**base_template_params)
+        self.backend.debug(
+            'Formatting with template: %s' % combined_template_source)
+        combined_template = self.jinja2.from_string(combined_template_source)
+        return combined_template.render(**render_data)
+
+    def _wrap_rule(self, rule, rule_type):
+        template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
+            rule_type, rule)
+        return template
+
+    def prepare_data_rule(self, data_rule):
+        return self._wrap_rule(data_rule, 'data')
+
+    def prepare_syntax_rule(self, syntax_rule, data_rules):
+        self.backend.debug('Syntax rule template: %s' % syntax_rule)
+        template = self.jinja2.from_string(
+            syntax_rule, globals=self.passthrough_globals)
+        prepared_template = self._wrap_rule(
+            template.render(datarules=data_rules), 'syntax')
+        return prepared_template
+
+
+class OpenSSLFormatter(Formatter):
+    SyntaxRule = collections.namedtuple(
+        'SyntaxRule', ['template', 'is_extension'])
+
+    def __init__(self, backend):
+        super(OpenSSLFormatter, self).__init__(backend)
+        self._define_passthrough('openssl.section')
+
+    def format(self, syntax_rules, render_data):
+        parameters = [rule.template for rule in syntax_rules
+                      if not rule.is_extension]
+        extensions = [rule.template for rule in syntax_rules
+                      if rule.is_extension]
+
+        rendered = self._format(
+            'openssl_base.tmpl',
+            {'parameters': parameters, 'extensions': extensions}, render_data)
+        return dict(configfile=rendered)
+
+    def prepare_syntax_rule(self, syntax_rule, data_rules):
+        """Overrides method to pull out whether rule is an extension or not."""
+        self.backend.debug('Syntax rule template: %s' % syntax_rule)
+        template = self.jinja2.from_string(
+            syntax_rule, globals=self.passthrough_globals)
+        is_extension = getattr(template.module, 'extension', False)
+        prepared_template = self._wrap_rule(
+            template.render(datarules=data_rules), 'syntax')
+        return self.SyntaxRule(prepared_template, is_extension)
+
+
+class CertutilFormatter(Formatter):
+    def format(self, syntax_rules, render_data):
+        rendered = self._format(
+            'certutil_base.tmpl', {'options': syntax_rules}, render_data)
+        return dict(commandline=rendered)
+
+
+@register()
+class certmapping(Backend):
+    FORMATTERS = {
+        'openssl': OpenSSLFormatter,
+        'certutil': CertutilFormatter,
+    }
+
+    def get_request_data(self, principal, profile_id, helper):
+        config = api.Command.config_show()['result']
+        render_data = {'subject': principal, 'config': config}
+
+        formatter = self.FORMATTERS[helper](self)
+
+        syntax_rules = []
+        field_mappings = api.Command.certfieldmappingrule_find(
+            profile_id)['result']
+        for mapping in field_mappings:
+            syntax_ruleset_name = mapping['ipacertsyntaxmapping'][0]
+            syntax_ruleset = api.Command.certmappingrule_show(
+                syntax_ruleset_name['cn'])['result']
+            data_ruleset_names = mapping['ipacertdatamapping']
+            data_rulesets = [
+                api.Command.certmappingrule_show(name['cn'])['result']
+                for name in data_ruleset_names]
+
+            syntax_rule = self.get_rule_for_helper(syntax_ruleset, helper)
+            data_rules = [formatter.prepare_data_rule(
+                self.get_rule_for_helper(ruleset, helper))
+                for ruleset in data_rulesets]
+            syntax_rules.append(formatter.prepare_syntax_rule(
+                syntax_rule, data_rules))
+
+        formatted_values = formatter.format(syntax_rules, render_data)
+        return formatted_values
+
+    def get_rule_for_helper(self, ruleset, helper):
+        rules = api.Command.certtransformationrule_find(
+            ruleset['cn'][0])['result']
+        for rule in rules:
+            if helper in rule['ipacerttransformationhelper']:
+                template = rule['ipacerttransformationtemplate'][0]
+                return template
+        raise errors.NotFound(
+            reason=_('No transformation in "%(ruleset)s" rule supports'
+                     ' format "%(helper)s"') %
+            {'ruleset': ruleset['cn'][0], 'helper': helper})
