@@ -40,12 +40,45 @@ except ImportError:
 if six.PY3:
     unicode = str
 
-Profile = collections.namedtuple('Profile', ['profile_id', 'description', 'store_issued'])
+Profile = collections.namedtuple('Profile', ['profile_id', 'description', 'store_issued', 'field_mappings'])
+FieldMapping = collections.namedtuple('FieldMapping', ['id', 'syntax_mapping', 'data_mappings'])
+MappingRuleset = collections.namedtuple('MappingRuleset', ['id', 'description', 'transformations'])
+TransformationRule = collections.namedtuple('TransformationRule', ['id', 'template', 'helper'])
 
-INCLUDED_PROFILES = {
-    Profile(u'caIPAserviceCert', u'Standard profile for network services', True),
-    Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True),
-    }
+INCLUDED_PROFILES = (
+    Profile(u'caIPAserviceCert', u'Standard profile for network services', True,
+        [u'hostSubject', u'DNSSAN']),
+    Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True, []),
+)
+
+INCLUDED_FIELD_MAPPINGS = (
+    FieldMapping(u'hostSubject', u'syntaxSubject', [u'dataHostCN']),
+    FieldMapping(u'DNSSAN', u'syntaxSAN', [u'dataDNS']),
+)
+
+INCLUDED_MAPPING_RULESETS = (
+    MappingRuleset(u'syntaxSubject', u'Syntax for adding a Subject Distinguished Name',
+        [u'syntaxSubjectOpenssl', u'syntaxSubjectCertutil']),
+    MappingRuleset(u'dataHostCN', u'DN with the principal\'s hostname as the CommonName',
+        [u'dataHostOpenssl', u'dataHostCertutil']),
+    MappingRuleset(u'syntaxSAN', u'Syntax for adding a Subject Alternate Name',
+        [u'syntaxSANOpenssl', u'syntaxSANCertutil']),
+    MappingRuleset(u'dataDNS',
+        u'Constructs a SubjectAltName entry from the principal\'s hostname',
+        [u'dataDNSOpenssl', u'dataDNSCertutil']),
+)
+
+INCLUDED_TRANSFORMATION_RULES = (
+    TransformationRule(u'syntaxSubjectOpenssl', u'one', u'openssl'),
+    TransformationRule(u'syntaxSubjectCertutil', u'two', u'certutil'),
+    TransformationRule(u'dataHostOpenssl', u'three', u'openssl'),
+    TransformationRule(u'dataHostCertutil', u'four', u'certutil'),
+    TransformationRule(u'syntaxSANOpenssl', u'five', u'openssl'),
+    TransformationRule(u'syntaxSANCertutil', u'six', u'certutil'),
+    TransformationRule(u'dataDNSOpenssl', u'seven', u'openssl'),
+    TransformationRule(u'dataDNSCertutil', u'eight', u'certutil'),
+)
+
 
 DEFAULT_PROFILE = u'caIPAserviceCert'
 
