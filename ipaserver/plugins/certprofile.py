@@ -140,6 +140,7 @@ class certprofile(LDAPObject):
         ),
         DNParam('ipacertfieldmapping',
             multivalue=True,
+            required=False,
             label=_('Cert field mapping'),
             doc=_('Reference to mapping rules for cert generation'),
             flags=('no_option',),
