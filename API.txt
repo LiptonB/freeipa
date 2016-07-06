@@ -828,6 +828,14 @@ option: Str('version?')
 output: Entry('result')
 output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: PrimaryKey('value')
+command: certfieldmappingrule_del/1
+args: 1,2,3
+arg: Str('cn+', cli_name='id')
+option: Flag('continue', autofill=True, cli_name='continue', default=False)
+option: Str('version?')
+output: Output('result', type=[<type 'dict'>])
+output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+output: ListOfPrimaryKeys('value')
 command: certfieldmappingrule_find/1
 args: 1,9,4
 arg: Str('criteria?')
@@ -882,6 +890,14 @@ option: Str('version?')
 output: Entry('result')
 output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: PrimaryKey('value')
+command: certmappingrule_del/1
+args: 1,2,3
+arg: Str('cn+', cli_name='id')
+option: Flag('continue', autofill=True, cli_name='continue', default=False)
+option: Str('version?')
+output: Output('result', type=[<type 'dict'>])
+output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+output: ListOfPrimaryKeys('value')
 command: certmappingrule_find/1
 args: 1,9,4
 arg: Str('criteria?')
@@ -949,20 +965,21 @@ output: ListOfEntries('result')
 output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: Output('truncated', type=[<type 'bool'>])
 command: certprofile_import/1
-args: 1,7,3
+args: 1,8,3
 arg: Str('cn', cli_name='id')
 option: Flag('all', autofill=True, cli_name='all', default=False)
 option: Str('description', cli_name='desc')
 option: Str('file', cli_name='file')
 option: DNParam('ipacertfieldmapping*')
 option: Bool('ipacertprofilestoreissued', cli_name='store', default=True)
+option: Str('mappings_file?', cli_name='mappings_file')
 option: Flag('raw', autofill=True, cli_name='raw', default=False)
 option: Str('version?')
 output: Entry('result')
 output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: PrimaryKey('value')
 command: certprofile_mod/1
-args: 1,11,3
+args: 1,12,3
 arg: Str('cn', cli_name='id')
 option: Str('addattr*', cli_name='addattr')
 option: Flag('all', autofill=True, cli_name='all', default=False)
@@ -971,6 +988,7 @@ option: Str('description?', autofill=False, cli_name='desc')
 option: Str('file?', cli_name='file')
 option: DNParam('ipacertfieldmapping*', autofill=False)
 option: Bool('ipacertprofilestoreissued?', autofill=False, cli_name='store', default=True)
+option: Str('mappings_file?', cli_name='mappings_file')
 option: Flag('raw', autofill=True, cli_name='raw', default=False)
 option: Flag('rights', autofill=True, default=False)
 option: Str('setattr*', cli_name='setattr')
@@ -979,9 +997,10 @@ output: Entry('result')
 output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: PrimaryKey('value')
 command: certprofile_show/1
-args: 1,5,3
+args: 1,6,3
 arg: Str('cn', cli_name='id')
 option: Flag('all', autofill=True, cli_name='all', default=False)
+option: Str('mappings_out?')
 option: Str('out?')
 option: Flag('raw', autofill=True, cli_name='raw', default=False)
 option: Flag('rights', autofill=True, default=False)
@@ -1002,6 +1021,14 @@ option: Str('version?')
 output: Entry('result')
 output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: PrimaryKey('value')
+command: certtransformationrule_del/1
+args: 1,2,3
+arg: Str('cn+', cli_name='id')
+option: Flag('continue', autofill=True, cli_name='continue', default=False)
+option: Str('version?')
+output: Output('result', type=[<type 'dict'>])
+output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
+output: ListOfPrimaryKeys('value')
 command: certtransformationrule_find/1
 args: 1,9,4
 arg: Str('criteria?')
@@ -6449,11 +6476,13 @@ default: cert_show/1
 default: cert_status/1
 default: certfieldmappingrule/1
 default: certfieldmappingrule_add/1
+default: certfieldmappingrule_del/1
 default: certfieldmappingrule_find/1
 default: certfieldmappingrule_mod/1
 default: certfieldmappingrule_show/1
 default: certmappingrule/1
 default: certmappingrule_add/1
+default: certmappingrule_del/1
 default: certmappingrule_find/1
 default: certmappingrule_mod/1
 default: certmappingrule_show/1
@@ -6466,6 +6495,7 @@ default: certprofile_show/1
 default: certreq/1
 default: certtransformationrule/1
 default: certtransformationrule_add/1
+default: certtransformationrule_del/1
 default: certtransformationrule_find/1
 default: certtransformationrule_mod/1
 default: certtransformationrule_show/1

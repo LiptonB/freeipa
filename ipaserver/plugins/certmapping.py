@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2016  FreeIPA Contributors see COPYING for license
+#
+
+import json
 import pipes
 import re
 
@@ -9,7 +14,7 @@ from ipalib.parameters import Principal
 from ipalib.plugable import Registry
 from ipalib.text import _
 from .baseldap import (
-    LDAPCreate, LDAPObject, LDAPRetrieve, LDAPSearch, LDAPUpdate)
+    LDAPCreate, LDAPObject, LDAPRetrieve, LDAPSearch, LDAPUpdate, LDAPDelete)
 from .certprofile import validate_profile_id
 
 import six
@@ -88,6 +93,12 @@ class certfieldmappingrule_show(LDAPRetrieve):
 
     __doc__ = _("""Retrieve a Cert Field Mapping Rule""")
 
+@register()
+class certfieldmappingrule_del(LDAPDelete):
+    NO_CLI = True
+
+    __doc__ = _("""Delete a Cert Field Mapping Rule""")
+
 
 @register()
 class certmappingrule(LDAPObject):
@@ -154,6 +165,11 @@ class certmappingrule_show(LDAPRetrieve):
 
     __doc__ = _("""Retrieve a Certificate Mapping Rule""")
 
+@register()
+class certmappingrule_del(LDAPDelete):
+    NO_CLI = True
+
+    __doc__ = _("""Delete a Certificate Mapping Rule""")
 
 @register()
 class certtransformationrule(LDAPObject):
@@ -219,6 +235,12 @@ class certtransformationrule_show(LDAPRetrieve):
     NO_CLI = True
 
     __doc__ = _("""Retrieve a Certificate Transformation Rule""")
+
+@register()
+class certtransformationrule_del(LDAPDelete):
+    NO_CLI = True
+
+    __doc__ = _("""Delete a Certificate Transformation Rule""")
 
 @register()
 class cert_get_requestdata(Command):
@@ -381,6 +403,90 @@ class certmapping(Backend):
             return template_method(kwargs)
         else:
             raise NotImplementedError('Only py rules allowed for now')
+
+    def get_profile_mappings(self, profile_id):
+        """Return the list of certfieldmappingrules in a profile.
+
+        If the profile does not exist, returns an empty list.
+        """
+        mappings = []
+        try:
+            profile = api.Command.certprofile_show(profile_id, all=True)['result']
+            mappings = profile['ipacertfieldmapping']
+        except (errors.NotFound, KeyError):
+            pass
+
+        return mappings
+
+    def delete_profile_mappings(self, mapping_dns):
+        """Try to delete all the specified certfieldmappingrules.
+
+        If one of the specified rules does not exist, continue on to the others.
+        """
+        for mapping in mapping_dns:
+            try:
+                api.Command.certfieldmappingrule_del(mapping['cn'])
+            except errors.NotFound:
+                pass
+
+    def export_profile_mappings(self, profile_id):
+        rules = []
+        for mapping_dn in self.get_profile_mappings(profile_id):
+            mapping = api.Command.certfieldmappingrule_show(mapping_dn['cn'])['result']
+            syntax = mapping['ipacertsyntaxmapping'][0]['cn']
+            data = [rule['cn'] for rule in mapping['ipacertdatamapping']]
+            rules.append({'syntax': syntax, 'data': data})
+        return rules
+
+    def export_profile_mappings_json(self, profile_id):
+        rules = self.export_profile_mappings(profile_id)
+        return json.dumps(rules, indent=4) + '\n'
+
+    def _get_dn(self, cn):
+        mapping = api.Command.certmappingrule_show(cn)
+        return mapping['result']['dn']
+
+    def import_profile_mappings_json(self, profile_id, mappings_str):
+        try:
+            mappings = json.loads(mappings_str)
+        except ValueError as err:
+            raise errors.ValidationError(name=_('mappings_file'),
+                    error=_('Not a valid JSON document'))
+
+        return self.import_profile_mappings(profile_id, mappings)
+
+    def import_profile_mappings(self, profile_id, mappings, mapping_names=None, old_mappings=None):
+        if old_mappings is None:
+            old_mappings = self.get_profile_mappings(profile_id)
+
+        if mapping_names is None:
+            old_maxindex = 0
+            for mapping in old_mappings:
+                _profile, _dash, index_str = mapping['cn'].rpartition('-')
+                index = int(index_str)
+                if index > old_maxindex:
+                    old_maxindex = index
+
+            mapping_names = ['%s-%s' % (profile_id, old_maxindex + index + 1)
+                    for index in range(len(mappings))]
+
+        field_mappings = []
+        try:
+            for name, mapping in zip(mapping_names, mappings):
+                syntax = self._get_dn(mapping['syntax'])
+                data = [self._get_dn(rule) for rule in mapping['data']]
+                field_mapping = api.Command.certfieldmappingrule_add(name,
+                        ipacertsyntaxmapping=syntax,
+                        ipacertdatamapping=data)['result']
+                field_mappings.append(field_mapping['dn'])
+        except:
+            self.delete_profile_mappings(field_mappings)
+            raise
+
+        self.delete_profile_mappings(old_mappings)
+
+        return field_mappings
+
 
 @register()
 class datamapping(Backend):

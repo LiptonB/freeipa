@@ -53,6 +53,7 @@ INCLUDED_PROFILES = (
     Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True, []),
 )
 
+# TODO(blipton): Use the json file import method instead
 INCLUDED_FIELD_MAPPINGS = (
     FieldMapping(u'hostSubject', u'syntaxSubject', [u'dataHostCN']),
     FieldMapping(u'userSubject', u'syntaxSubject', [u'dataUsernameCN']),
