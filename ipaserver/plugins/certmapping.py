@@ -206,6 +206,7 @@ class certtransformationrule(LDAPObject):
         ),
         Str('ipacerttransformationhelper',
             required=True,
+            multivalue=True,
             cli_name='helper',
             label=_('Name of CSR generation helper'),
             doc=_('Name of the CSR generation helper to which the syntax of this rule is targeted'),
