@@ -296,7 +296,7 @@ class certprofile_import(LDAPCreate):
         return dn
 
     def exc_callback(self, keys, options, exc, call_func, *call_args, **call_kwargs):
-        if 'mappings_file' in options:
+        if 'mappings_file' in options and hasattr(context, 'old_mappings'):
             mapping_cns = [name['cn'] for name in context.old_mapping_names]
             mapping_names = self.api.Backend.certmapping.import_profile_mappings(
                     keys[0], context.old_mappings, mapping_cns, context.new_mapping_names)
@@ -375,7 +375,7 @@ class certprofile_mod(LDAPUpdate):
         return dn
 
     def exc_callback(self, keys, options, exc, call_func, *call_args, **call_kwargs):
-        if 'mappings_file' in options:
+        if 'mappings_file' in options and hasattr(context, 'old_mappings'):
             mapping_cns = [name['cn'] for name in context.old_mapping_names]
             self.api.Backend.certmapping.import_profile_mappings(
                     keys[0], context.old_mappings, mapping_cns, context.new_mapping_names)

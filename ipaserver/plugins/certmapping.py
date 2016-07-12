@@ -456,6 +456,21 @@ class certmapping(Backend):
         return self.import_profile_mappings(profile_id, mappings)
 
     def import_profile_mappings(self, profile_id, mappings, mapping_names=None, old_mappings=None):
+        # Validate user input
+        if not isinstance(mappings, list):
+            raise errors.ValidationError(name=_('mappings_file'),
+                    error=_('Must be a JSON array'))
+        for mapping in mappings:
+            if 'syntax' not in mapping:
+                raise errors.ValidationError(name=_('mappings_file'),
+                        error=_('Missing "syntax" key'))
+            if 'data' not in mapping:
+                raise errors.ValidationError(name=_('mappings_file'),
+                        error=_('Missing "data" key'))
+            if not isinstance(mapping['data'], list):
+                raise errors.ValidationError(name=_('mappings_file'),
+                        error=_('"data" key must be an array'))
+
         if old_mappings is None:
             old_mappings = self.get_profile_mappings(profile_id)
 

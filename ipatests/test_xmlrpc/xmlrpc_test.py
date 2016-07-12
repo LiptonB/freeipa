@@ -104,6 +104,11 @@ fuzzy_dergeneralizedtime = Fuzzy(type=datetime.datetime)
 # match any string
 fuzzy_string = Fuzzy(type=six.string_types)
 
+# Matches any certfieldmappingrule DN
+fuzzy_certfieldmappingrule = Fuzzy(
+    '(?i)cn=.*,cn=fieldmappingrules,cn=ca,%s' % api.env.basedn
+)
+
 # case insensitive match of sets
 def fuzzy_set_ci(s):
     return Fuzzy(test=lambda other: set(x.lower() for x in other) == set(y.lower() for y in s))
