@@ -3,8 +3,10 @@
 # Copyright (C) 2015  FreeIPA Contributors see COPYING for license
 #
 
+import json
 import os
 
+import nose
 import six
 
 from ipapython.dn import DN
@@ -28,15 +30,19 @@ class CertprofileTracker(Tracker):
     update_keys = retrieve_keys - {'dn'}
     managedby_keys = retrieve_keys
     allowedto_keys = retrieve_keys
+    # Keys that are passed to Tracker.update() but never returned in the
+    # response
+    ignore_extra_keys = {'mappings_file'}
 
     def __init__(self, name, store=False, desc='dummy description',
-                 profile=None, default_version=None):
+                 profile=None, mappings=None, default_version=None):
         super(CertprofileTracker, self).__init__(
             default_version=default_version
         )
 
         self.store = store
         self.description = desc
+        self.mappings = mappings
         self._profile_path = profile
 
         self.dn = DN(('cn', name), 'cn=certprofiles', 'cn=ca',
@@ -57,15 +63,30 @@ class CertprofileTracker(Tracker):
             content = f.read()
         return unicode(content)
 
+    def _format_mappings(self, mappings):
+        if mappings is None:
+            return None
+        else:
+            return unicode(json.dumps(mappings))
+
+    def check_mappings(self, tmpdir):
+        mappings = tmpdir.join('{}.mappings.json'.format(self.name))
+
+        command = self.make_retrieve_command(mappings_out=unicode(mappings))
+        command()
+
+        content = json.load(mappings)
+        nose.tools.assert_items_equal(content, self.mappings)
+
     def make_create_command(self, force=True):
         if not self.profile:
             raise RuntimeError('Tracker object without path to profile '
                                'cannot be used to create profile entry.')
 
-        return self.make_command('certprofile_import', self.name,
-                                 description=self.description,
-                                 ipacertprofilestoreissued=self.store,
-                                 file=self.profile)
+        return self.make_command(
+            'certprofile_import', self.name, description=self.description,
+            ipacertprofilestoreissued=self.store, file=self.profile,
+            mappings_file=self._format_mappings(self.mappings))
 
     def check_create(self, result):
         assert_deepequal(dict(
@@ -82,6 +103,7 @@ class CertprofileTracker(Tracker):
             ipacertprofilestoreissued=[unicode(self.store).upper()],
             objectclass=objectclasses.certprofile
         )
+
         self.exists = True
 
     def make_delete_command(self):
@@ -126,6 +148,15 @@ class CertprofileTracker(Tracker):
             result=[expected]
         ), result)
 
+    def update(self, updates, expected_updates=None, mappings=None):
+        passed_updates = updates.copy()
+        if mappings is not None:
+            self.mappings = mappings
+            passed_updates['mappings_file'] = self._format_mappings(mappings)
+
+        return super(CertprofileTracker, self).update(
+            passed_updates, expected_updates)
+
     def make_update_command(self, updates):
         return self.make_command('certprofile_mod', self.name, **updates)
 
@@ -133,5 +164,7 @@ class CertprofileTracker(Tracker):
         assert_deepequal(dict(
             value=self.name,
             summary=u'Modified Certificate Profile "{}"'.format(self.name),
-            result=self.filter_attrs(self.update_keys | set(extra_keys))
+            result=self.filter_attrs(
+                self.update_keys
+                | (set(extra_keys) - self.ignore_extra_keys))
         ), result)

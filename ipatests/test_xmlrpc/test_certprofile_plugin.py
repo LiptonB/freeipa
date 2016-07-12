@@ -38,6 +38,9 @@ CA_IPA_SERVICE_MALFORMED_TEMPLATE = os.path.join(
 CA_IPA_SERVICE_XML_TEMPLATE = os.path.join(
     BASE_DIR, 'data/caIPAserviceCert.xml.tmpl')
 
+NAMELESS_TEMPLATE = os.path.join(
+    BASE_DIR, 'data/nameless.cfg.tmpl')
+
 RENAME_ERR_TEMPL = (
     u'certprofile {} cannot be deleted/modified: '
     'Certificate profiles cannot be renamed')
@@ -67,6 +70,89 @@ def user_profile(request):
     )
 
     return tracker.make_fixture(request)
+
+
+@pytest.fixture(scope='class')
+def mappings_profile(request):
+    name = 'caIPAserviceCert_mappings'
+    profile_path = prepare_config(
+        NAMELESS_TEMPLATE,
+        dict(
+            ipadomain=api.env.domain,
+            ipacertbase=IPA_CERT_SUBJ_BASE))
+
+    mappings = [
+        {
+            "syntax": "syntaxSubject",
+            "data": [
+                "dataHostCN",
+            ],
+        },
+        {
+            "syntax": "syntaxSAN",
+            "data": [
+                "dataDNS",
+            ],
+        },
+    ]
+
+    tracker = CertprofileTracker(
+        name, store=True, desc=u'Profile with mappings',
+        profile=profile_path, mappings=mappings
+    )
+
+    return tracker.make_fixture(request)
+
+
+@pytest.fixture(scope='class')
+def malformed_mappings_profile(request):
+    name = 'caIPAserviceCert_bad_mappings'
+    profile_path = prepare_config(
+        NAMELESS_TEMPLATE,
+        dict(
+            ipadomain=api.env.domain,
+            ipacertbase=IPA_CERT_SUBJ_BASE))
+
+    mappings = [
+        {
+            "syntax": "syntaxSubject",
+        },
+    ]
+
+    tracker = CertprofileTracker(
+        name, store=True, desc=u'Profile with malformed mappings',
+        profile=profile_path, mappings=mappings
+    )
+
+    # Do not return with finalizer. There should be nothing to delete
+    return tracker
+
+
+@pytest.fixture(scope='class')
+def nonexistent_mappings_profile(request):
+    name = 'caIPAserviceCert_nonexistent_mappings'
+    profile_path = prepare_config(
+        NAMELESS_TEMPLATE,
+        dict(
+            ipadomain=api.env.domain,
+            ipacertbase=IPA_CERT_SUBJ_BASE))
+
+    mappings = [
+        {
+            "syntax": "nonexistentSyntax",
+            "data": [
+                "dataHostCN",
+            ],
+        },
+    ]
+
+    tracker = CertprofileTracker(
+        name, store=True, desc=u'Profile referencing nonexistent mappings',
+        profile=profile_path, mappings=mappings
+    )
+
+    # Do not return with finalizer. There should be nothing to delete
+    return tracker
 
 
 @pytest.fixture(scope='class')
@@ -211,10 +297,79 @@ class TestProfileCRUD(XMLRPC_test):
 
 
 @pytest.mark.tier1
+class TestMappingProfileCRUD(XMLRPC_test):
+    def test_import(self, mappings_profile):
+        mappings_profile.ensure_exists()
+
+    def test_delete(self, mappings_profile):
+        mappings_profile.ensure_exists()
+        mappings_profile.delete()
+
+    def test_retrieve_simple(self, mappings_profile):
+        mappings_profile.retrieve()
+
+    def test_retrieve_all(self, mappings_profile):
+        mappings_profile.retrieve(all=True)
+
+    def test_import_mappings(self, tmpdir, mappings_profile):
+        mappings_profile.ensure_exists()
+        mappings_profile.check_mappings(tmpdir)
+
+    def test_update_remove_mappings(self, tmpdir, mappings_profile):
+        new_mappings = []
+        mappings_profile.update(dict(), mappings=new_mappings)
+        mappings_profile.check_mappings(tmpdir)
+
+    def test_update_mappings(self, tmpdir, mappings_profile):
+        new_mappings = [
+            {
+                "syntax": "syntaxSubject",
+                "data": [
+                    "dataUsernameCN"
+                ]
+            },
+            {
+                "syntax": "syntaxSAN",
+                "data": [
+                    "dataEmail"
+                ],
+            }
+        ]
+        mappings_profile.update(dict(), mappings=new_mappings)
+        mappings_profile.check_mappings(tmpdir)
+
+    def test_import_malformed(self, malformed_mappings_profile):
+        with pytest.raises(errors.ValidationError):
+            malformed_mappings_profile.ensure_exists()
+        command = malformed_mappings_profile.make_retrieve_command()
+        with pytest.raises(errors.NotFound):
+            command()
+
+    def test_import_nonexistent(self, nonexistent_mappings_profile):
+        with pytest.raises(errors.NotFound):
+            nonexistent_mappings_profile.ensure_exists()
+        command = nonexistent_mappings_profile.make_retrieve_command()
+        with pytest.raises(errors.NotFound):
+            command()
+
+    def test_create_duplicate(self, tmpdir, mappings_profile):
+        msg = u'Certificate Profile with name "{}" already exists'
+        mappings_profile.ensure_exists()
+        command = mappings_profile.make_create_command(force=True)
+        with raises_exact(errors.DuplicateEntry(
+                message=msg.format(mappings_profile.name))):
+            command()
+        mappings_profile.check_mappings(tmpdir)
+
+
+@pytest.mark.tier1
 class TestMalformedProfile(XMLRPC_test):
     def test_malformed_import(self, malformed):
         with pytest.raises(errors.ExecutionError):
             malformed.create()
+        command = malformed.make_retrieve_command()
+        with pytest.raises(errors.NotFound):
+            command()
 
 
 @pytest.mark.tier1
@@ -222,3 +377,6 @@ class TestImportFromXML(XMLRPC_test):
     def test_import_xml(self, xmlprofile):
         with pytest.raises(errors.ExecutionError):
             xmlprofile.ensure_exists()
+        command = xmlprofile.make_retrieve_command()
+        with pytest.raises(errors.NotFound):
+            command()
