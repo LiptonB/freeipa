@@ -268,11 +268,11 @@ class certprofile_import(LDAPCreate):
                     % {'cli_value': keys[0], 'file_value': match.group(1)}
             )
 
-        if mappings:
+        if mappings is not None:
             context.old_mapping_names = self.api.Backend.certmapping.get_profile_mappings(keys[0])
             context.old_mappings = self.api.Backend.certmapping.export_profile_mappings(keys[0])
             context.new_mapping_names = self.api.Backend.certmapping.import_profile_mappings_json(
-                    keys[0], options['mappings_file'])
+                    keys[0], mappings)
             entry_attrs['ipacertfieldmapping'] = context.new_mapping_names
 
         return dn
@@ -296,7 +296,7 @@ class certprofile_import(LDAPCreate):
         return dn
 
     def exc_callback(self, keys, options, exc, call_func, *call_args, **call_kwargs):
-        if 'mappings_file' in options and hasattr(context, 'old_mappings'):
+        if options.get('mappings_file') is not None and hasattr(context, 'old_mappings'):
             mapping_cns = [name['cn'] for name in context.old_mapping_names]
             mapping_names = self.api.Backend.certmapping.import_profile_mappings(
                     keys[0], context.old_mappings, mapping_cns, context.new_mapping_names)
@@ -365,31 +365,33 @@ class certprofile_mod(LDAPUpdate):
                 finally:
                     profile_api.enable_profile(keys[0])
 
-        if 'mappings_file' in options:
+        mappings = options.get('mappings_file')
+
+        if mappings is not None:
             context.old_mapping_names = self.api.Backend.certmapping.get_profile_mappings(keys[0])
             context.old_mappings = self.api.Backend.certmapping.export_profile_mappings(keys[0])
             context.new_mapping_names = self.api.Backend.certmapping.import_profile_mappings_json(
-                    keys[0], options['mappings_file'])
+                    keys[0], mappings)
             entry_attrs['ipacertfieldmapping'] = context.new_mapping_names
 
         return dn
 
     def exc_callback(self, keys, options, exc, call_func, *call_args, **call_kwargs):
-        if 'mappings_file' in options and hasattr(context, 'old_mappings'):
-            mapping_cns = [name['cn'] for name in context.old_mapping_names]
-            self.api.Backend.certmapping.import_profile_mappings(
-                    keys[0], context.old_mappings, mapping_cns, context.new_mapping_names)
-        raise exc
-
-    def execute(self, *keys, **options):
-        try:
-            return super(certprofile_mod, self).execute(*keys, **options)
-        except errors.EmptyModlist:
-            if 'file' in options or 'mappings_file' in options:
+        mappings = options.get('mappings_file')
+        # Make sure this is really an error
+        if isinstance(exc, errors.EmptyModlist):
+            if 'file' in options or mappings is not None:
                 # The profile data in Dogtag was updated.
                 # Do not fail; return result of certprofile-show instead
                 return self.api.Command.certprofile_show(keys[0],
                     version=API_VERSION)
-            else:
-                # This case is actually an error; re-raise
-                raise
+
+        # Clean up
+        if (mappings is not None
+                and hasattr(context, 'old_mappings')):
+            mapping_cns = [name['cn'] for name in context.old_mapping_names]
+            self.api.Backend.certmapping.import_profile_mappings(
+                    keys[0], context.old_mappings, mapping_cns, context.new_mapping_names)
+
+        # Re-raise exception
+        raise exc
