@@ -1170,6 +1170,7 @@ fi
 %{_usr}/share/ipa/advise/legacy/*.template
 %dir %{_usr}/share/ipa/profiles
 %{_usr}/share/ipa/profiles/*.cfg
+%{_usr}/share/ipa/profiles/*.mappings.json
 %dir %{_usr}/share/ipa/ffextension
 %{_usr}/share/ipa/ffextension/bootstrap.js
 %{_usr}/share/ipa/ffextension/install.rdf

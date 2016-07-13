@@ -40,25 +40,15 @@ except ImportError:
 if six.PY3:
     unicode = str
 
-Profile = collections.namedtuple('Profile', ['profile_id', 'description', 'store_issued', 'field_mappings'])
+Profile = collections.namedtuple('Profile', ['profile_id', 'description', 'store_issued'])
 FieldMapping = collections.namedtuple('FieldMapping', ['id', 'syntax_mapping', 'data_mappings'])
 MappingRuleset = collections.namedtuple('MappingRuleset', ['id', 'description', 'transformations'])
 TransformationRule = collections.namedtuple('TransformationRule', ['id', 'template', 'helpers'])
 
 INCLUDED_PROFILES = (
-    Profile(u'caIPAserviceCert', u'Standard profile for network services', True,
-        [u'hostSubject', u'DNSSAN']),
-    Profile(u'caIPAuserCert', u'Standard profile for users', True,
-        [u'userSubject', u'emailSAN']),
-    Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True, []),
-)
-
-# TODO(blipton): Use the json file import method instead
-INCLUDED_FIELD_MAPPINGS = (
-    FieldMapping(u'hostSubject', u'syntaxSubject', [u'dataHostCN']),
-    FieldMapping(u'userSubject', u'syntaxSubject', [u'dataUsernameCN']),
-    FieldMapping(u'DNSSAN', u'syntaxSAN', [u'dataDNS']),
-    FieldMapping(u'emailSAN', u'syntaxSAN', [u'dataEmail']),
+    Profile(u'caIPAserviceCert', u'Standard profile for network services', True),
+    Profile(u'caIPAuserCert', u'Standard profile for users', True),
+    Profile(u'IECUserRoles', u'User profile that includes IECUserRoles extension from request', True),
 )
 
 INCLUDED_MAPPING_RULESETS = (

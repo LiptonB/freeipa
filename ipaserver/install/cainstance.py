@@ -25,6 +25,7 @@ import array
 import base64
 import binascii
 import dbus
+import errno
 import ldap
 import os
 import pwd
@@ -39,6 +40,7 @@ import xml.dom.minidom
 import shlex
 import pipes
 
+import six
 from six.moves import urllib
 from six.moves.configparser import ConfigParser, RawConfigParser
 
@@ -79,6 +81,9 @@ try:
     import httplib
 except ImportError:
     import http.client as httplib
+
+if six.PY3:
+    unicode = str
 
 
 # We need to reset the template because the CA uses the regular boot
@@ -1804,19 +1809,31 @@ def __get_profile_config(profile_id):
         CRL_ISSUER='CN=Certificate Authority,o=ipaca',
         SUBJECT_DN_O=dsinstance.DsInstance().find_subject_base(),
     )
-    return ipautil.template_file(
-        '/usr/share/ipa/profiles/{}.cfg'.format(profile_id), sub_dict)
+    return unicode(ipautil.template_file(
+        '/usr/share/ipa/profiles/{}.cfg'.format(profile_id), sub_dict))
 
-def __create_entry_if_new(conn, entry):
-    if not conn.entry_exists(entry.dn):
-        conn.add_entry(entry)
+def __get_mapping_config(profile_id):
+    sub_dict = {}
+    try:
+        return unicode(ipautil.template_file(
+            '/usr/share/ipa/profiles/{}.mappings.json'.format(profile_id), sub_dict))
+    except IOError as err:
+        if err.errno == errno.ENOENT:
+            return u'[]'  # No mapping file, no mappings
+        else:
+            raise
 
 def import_included_profiles():
     server_id = installutils.realm_to_serverid(api.env.realm)
     dogtag_uri = 'ldapi://%%2fvar%%2frun%%2fslapd-%s.socket' % server_id
-    conn = ldap2.ldap2(api, ldap_uri=dogtag_uri)
-    if not conn.isconnected():
-        conn.connect(autobind=True)
+
+    if not api.Backend.ldap2.isconnected():
+        try:
+            api.Backend.ldap2.connect(autobind=True)
+        except ipalib.errors.PublicError as e:
+            root_logger.error(
+                "Cannot connect to LDAP to add certificate profiles: %s", e)
+            return
 
     ensure_entry(
         DN(('cn', 'ca'), api.env.basedn),
@@ -1833,70 +1850,41 @@ def import_included_profiles():
     api.Backend.ra_certprofile.override_port = 8443
 
     for (rule_id, template, helpers) in dogtag.INCLUDED_TRANSFORMATION_RULES:
-        dn = DN(('cn', rule_id),
-            api.env.container_certtransformationrule, api.env.basedn)
-        entry = conn.make_entry(
-            dn,
-            objectclass=['ipacerttransformationrule'],
-            cn=[rule_id],
-            ipacerttransformationtemplate=[template],
-            ipacerttransformationhelper=helpers,
-        )
-        __create_entry_if_new(conn, entry)
+        try:
+            api.Command.certtransformationrule_show(rule_id)
+        except errors.NotFound:
+            api.Command.certtransformationrule_add(rule_id,
+                    ipacerttransformationtemplate=template,
+                    ipacerttransformationhelper=helpers)
 
     for (ruleset_id, description, transformations) in dogtag.INCLUDED_MAPPING_RULESETS:
-        dn = DN(('cn', ruleset_id),
-            api.env.container_certmappingruleset, api.env.basedn)
-        transformation_dns = [DN(('cn', rule),
-            api.env.container_certtransformationrule, api.env.basedn) for
-            rule in transformations]
-        entry = conn.make_entry(
-            dn,
-            objectclass=['ipacertmappingruleset'],
-            cn=[ruleset_id],
-            description=[description],
-            ipacerttransformation=transformation_dns,
-        )
-        __create_entry_if_new(conn, entry)
+        try:
+            api.Command.certmappingrule_show(ruleset_id)
+        except errors.NotFound:
+            # TODO(blipton): This seems like it would get better if
+            # transformation rules were members of mapping rules
+            transformation_dns = [api.Command.certtransformationrule_show(rule)['result']['dn']
+                    for rule in transformations]
+            api.Command.certmappingrule_add(ruleset_id,
+                    description=description,
+                    ipacerttransformation=transformation_dns)
 
-    for (mapping_id, syntax_mapping, data_mappings) in dogtag.INCLUDED_FIELD_MAPPINGS:
-        dn = DN(('cn', mapping_id),
-            api.env.container_certfieldmappingrule, api.env.basedn)
-        syntax_dn = DN(('cn', syntax_mapping),
-            api.env.container_certmappingruleset, api.env.basedn)
-        data_dns = [DN(('cn', rule), api.env.container_certmappingruleset,
-            api.env.basedn) for rule in data_mappings]
-        entry = conn.make_entry(
-            dn,
-            objectclass=['ipacertfieldmappingrule'],
-            cn=[mapping_id],
-            ipacertsyntaxmapping=[syntax_dn],
-            ipacertdatamapping=data_dns,
-        )
-        __create_entry_if_new(conn, entry)
-
-    for (profile_id, desc, store_issued, field_mappings) in dogtag.INCLUDED_PROFILES:
-        dn = DN(('cn', profile_id),
-            api.env.container_certprofile, api.env.basedn)
-        mapping_dns = [DN(('cn', rule), api.env.container_certfieldmappingrule,
-            api.env.basedn) for rule in field_mappings]
-        entry = conn.make_entry(
-            dn,
-            objectclass=['ipacertprofile'],
-            cn=[profile_id],
-            description=[desc],
-            ipacertprofilestoreissued=['TRUE' if store_issued else 'FALSE'],
-            ipacertfieldmapping=mapping_dns,
-        )
-        __create_entry_if_new(conn, entry)
-
+    for (profile_id, desc, store_issued) in dogtag.INCLUDED_PROFILES:
         # Create the profile, replacing any existing profile of same name
         profile_data = __get_profile_config(profile_id)
-        _create_dogtag_profile(profile_id, profile_data, overwrite=True)
+        mapping_data = __get_mapping_config(profile_id)
+        try:
+            api.Command.certprofile_import(profile_id, file=profile_data,
+                    mappings_file=mapping_data, description=desc,
+                    ipacertprofilestoreissued=store_issued, overwrite=True)
+        except errors.DuplicateEntry:
+            api.Command.certprofile_mod(profile_id, file=profile_data,
+                    mappings_file=mapping_data, description=desc,
+                    ipacertprofilestoreissued=store_issued)
         root_logger.info("Imported profile '%s'", profile_id)
 
     api.Backend.ra_certprofile.override_port = None
-    conn.disconnect()
+    api.Backend.ldap2.disconnect()
 
 
 def repair_profile_caIPAserviceCert():
