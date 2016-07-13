@@ -78,12 +78,16 @@ register = Registry()
 def ca_enabled_check():
     """Raise NotFound if CA is not enabled.
 
+    Always succeeds if in installer mode, because we use these API calls to set
+    up profiles in the CA before the CA is fully enabled.
+
     This function is defined in multiple plugins to avoid circular imports
     (cert depends on certprofile, so we cannot import cert here).
 
     """
-    if not api.Command.ca_is_enabled()['result']:
-        raise errors.NotFound(reason=_('CA is not configured'))
+    if api.env.context != 'installer':
+        if not api.Command.ca_is_enabled()['result']:
+            raise errors.NotFound(reason=_('CA is not configured'))
 
 
 profile_id_pattern = re.compile('^[a-zA-Z]\w*$')
@@ -249,6 +253,12 @@ class certprofile_import(LDAPCreate):
             flags=('virtual_attribute',),
             noextrawhitespace=False,
         ),
+        Bool(
+            'overwrite?',
+            default=False,
+            label=_('Overwrite Dogtag profile if it exists.'),
+            flags=('virtual_attribute', 'no_option'),
+        )
     )
 
     PROFILE_ID_PATTERN = re.compile('^profileId=([a-zA-Z]\w*)', re.MULTILINE)
@@ -283,11 +293,27 @@ class certprofile_import(LDAPCreate):
 
         If the operation fails, remove the LDAP entry.
         """
+        profile_id = keys[0]
+        profile_data = context.profile
+
+        # This logic copied from ipaserver.install.cainstance._create_dogtag_profile
         try:
             with self.api.Backend.ra_certprofile as profile_api:
-                profile_api.create_profile(context.profile)
-                profile_api.enable_profile(keys[0])
+                try:
+                    profile_api.create_profile(profile_data)
+                except errors.DuplicateEntry:
+                    if options.get('overwrite'):
+                        try:
+                            profile_api.disable_profile(profile_id)
+                        except errors.RemoteRetrieveError:
+                            pass
 
+                        profile_api.update_profile(profile_id, profile_data)
+
+                try:
+                    profile_api.enable_profile(profile_id)
+                except errors.RemoteRetrieveError:
+                    pass
         except:
             # something went wrong ; delete entry
             ldap.delete_entry(dn)

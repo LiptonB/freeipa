@@ -457,6 +457,9 @@ class certmapping(Backend):
         return self.import_profile_mappings(profile_id, mappings)
 
     def import_profile_mappings(self, profile_id, mappings, mapping_names=None, old_mappings=None):
+        self.debug('Backend.certmapping.import_profile_mappings(profile_id=%s,'
+                'mappings=%s, mapping_names=%s, old_mappings=%s)' %
+                (profile_id, mappings, mapping_names, old_mappings))
         # Validate user input
         if not isinstance(mappings, list):
             raise errors.ValidationError(name=_('mappings_file'),

@@ -2056,7 +2056,9 @@ class RestClient(Backend):
             method='GET'
         )
         cookies = ipapython.cookie.Cookie.parse(resp_headers.get('set-cookie', ''))
-        if status != 200 or len(cookies) == 0:
+        if status == 409:
+            raise errors.DuplicateEntry
+        elif status != 200 or len(cookies) == 0:
             raise errors.RemoteRetrieveError(reason=_('Failed to authenticate to CA REST API'))
         self.cookie = str(cookies[0])
         return self
