@@ -6,6 +6,7 @@
 import json
 import os
 
+import nose
 import six
 
 from ipapython.dn import DN
@@ -75,7 +76,7 @@ class CertprofileTracker(Tracker):
         command()
 
         content = json.load(mappings)
-        assert content == self.mappings
+        nose.tools.assert_items_equal(content, self.mappings)
 
     def make_create_command(self, force=True):
         if not self.profile:

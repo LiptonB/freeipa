@@ -357,6 +357,9 @@ class TestMalformedProfile(XMLRPC_test):
     def test_malformed_import(self, malformed):
         with pytest.raises(errors.ExecutionError):
             malformed.create()
+        command = malformed.make_retrieve_command()
+        with pytest.raises(errors.NotFound):
+            command()
 
 
 @pytest.mark.tier1
@@ -364,3 +367,6 @@ class TestImportFromXML(XMLRPC_test):
     def test_import_xml(self, xmlprofile):
         with pytest.raises(errors.ExecutionError):
             xmlprofile.ensure_exists()
+        command = xmlprofile.make_retrieve_command()
+        with pytest.raises(errors.NotFound):
+            command()
