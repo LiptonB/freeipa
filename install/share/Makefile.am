@@ -3,6 +3,7 @@ NULL =
 SUBDIRS =  				\
 	advise				\
 	profiles			\
+	csrtemplates			\
 	$(NULL)
 
 appdir = $(IPA_DATA_DIR)
