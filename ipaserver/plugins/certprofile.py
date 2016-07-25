@@ -182,7 +182,6 @@ class certprofile(LDAPObject):
     }
 
 
-
 @register()
 class certprofile_find(LDAPSearch):
     __doc__ = _("Search for Certificate Profiles.")
@@ -203,6 +202,9 @@ class certprofile_show(LDAPRetrieve):
         Str('out?',
             doc=_('Write profile configuration to file'),
         ),
+        Str('mappings_out?',
+            doc=_('Write CSR generation mappings to file'),
+        ),
     )
 
     def execute(self, *keys, **options):
@@ -212,6 +214,11 @@ class certprofile_show(LDAPRetrieve):
         if 'out' in options:
             with self.api.Backend.ra_certprofile as profile_api:
                 result['result']['config'] = profile_api.read_profile(keys[0])
+
+        if 'mappings_out' in options:
+            mapping_api = self.api.Backend.certmapping
+            mappings = mapping_api.export_profile_mappings_json(keys[0])
+            result['result']['mappings'] = mappings
 
         return result
 
@@ -228,11 +235,19 @@ class certprofile_import(LDAPCreate):
             flags=('virtual_attribute',),
             noextrawhitespace=False,
         ),
+        Str(
+            'mappings_file?',
+            label=_('Filename of a JSON file specifying CSR mapping rules.'),
+            cli_name='mappings_file',
+            flags=('virtual_attribute',),
+            noextrawhitespace=False,
+        ),
     )
 
     PROFILE_ID_PATTERN = re.compile('^profileId=([a-zA-Z]\w*)', re.MULTILINE)
 
-    def pre_callback(self, ldap, dn, entry, entry_attrs, *keys, **options):
+    def pre_callback(self, ldap, dn, entry_attrs, attrs_list, *keys,
+                     **options):
         ca_enabled_check()
         context.profile = options['file']
 
@@ -247,7 +262,6 @@ class certprofile_import(LDAPCreate):
             )
         return dn
 
-
     def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
         """Import the profile into Dogtag and enable it.
 
@@ -261,6 +275,17 @@ class certprofile_import(LDAPCreate):
             # something went wrong ; delete entry
             ldap.delete_entry(dn)
             raise
+
+        mappings = options.get('mappings_file')
+        if mappings is not None:
+            backend = self.api.Backend.certmapping
+            try:
+                backend.import_profile_mappings_json(keys[0], mappings)
+            except:
+                # At this point profile is sufficiently created that the del
+                # command should work
+                self.api.Command.certprofile_del(keys[0])
+                raise
 
         return dn
 
@@ -301,6 +326,13 @@ class certprofile_mod(LDAPUpdate):
             flags=('virtual_attribute',),
             noextrawhitespace=False,
         ),
+        Str(
+            'mappings_file?',
+            label=_('Filename of a JSON file specifying CSR mapping rules.'),
+            cli_name='mappings_file',
+            flags=('virtual_attribute',),
+            noextrawhitespace=False,
+        ),
     )
 
     def pre_callback(self, ldap, dn, entry_attrs, attrs_list, *keys, **options):
@@ -319,15 +351,34 @@ class certprofile_mod(LDAPUpdate):
 
         return dn
 
-    def execute(self, *keys, **options):
-        try:
-            return super(certprofile_mod, self).execute(*keys, **options)
-        except errors.EmptyModlist:
-            if 'file' in options:
+    def post_callback(self, ldap, dn, entry_attrs, *keys, **options):
+        mappings = options.get('mappings_file')
+
+        if mappings is not None:
+            backend = self.api.Backend.certmapping
+            context.old_mapping_names = backend.get_profile_mappings(keys[0])
+            context.new_mapping_names = backend.import_profile_mappings_json(
+                keys[0], mappings)
+            backend.delete_profile_mappings(
+                keys[0], context.old_mapping_names)
+
+        return dn
+
+    def exc_callback(self, keys, options, exc, call_func, *call_args,
+                     **call_kwargs):
+        mappings = options.get('mappings_file')
+        # Make sure this is really an error
+        if isinstance(exc, errors.EmptyModlist):
+            if 'file' in options or mappings is not None:
                 # The profile data in Dogtag was updated.
                 # Do not fail; return result of certprofile-show instead
-                return self.api.Command.certprofile_show(keys[0],
-                    version=API_VERSION)
-            else:
-                # This case is actually an error; re-raise
-                raise
+                return self.api.Command.certprofile_show(
+                    keys[0], version=API_VERSION)
+
+        # Clean up
+        if hasattr(context, 'new_mapping_names'):
+            self.api.Backend.certmapping.delete_profile_mappings(
+                keys[0], context.new_mapping_names)
+
+        # Re-raise exception
+        raise exc
