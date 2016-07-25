@@ -14,6 +14,7 @@ from ipalib import output
 from ipalib.parameters import Principal
 from ipalib.plugable import Registry
 from ipalib.text import _
+from ipapython.templating import IPAExtension
 from .baseldap import (LDAPCreate, LDAPObject, LDAPRetrieve, LDAPSearch,
                        LDAPUpdate, LDAPDelete)
 from .certprofile import validate_profile_id
@@ -305,7 +306,7 @@ class Formatter(object):
         self.backend = backend
         self.jinja2 = jinja2.sandbox.SandboxedEnvironment(
             loader=jinja2.FileSystemLoader('/usr/share/ipa/csrtemplates'),
-            extensions=[jinja2.ext.ExprStmtExtension],
+            extensions=[jinja2.ext.ExprStmtExtension, IPAExtension],
             keep_trailing_newline=True, undefined=IndexableUndefined)
 
         self.passthrough_globals = {}

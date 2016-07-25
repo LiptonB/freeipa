@@ -67,28 +67,47 @@ INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'syntaxSubject', u'Syntax for adding a Subject Distinguished Name',
         [
-            TransformationRule(u'syntaxSubjectOpenssl', u'one', [u'openssl']),
             TransformationRule(
-                u'syntaxSubjectCertutil', u'two', [u'certutil']),
+                u'syntaxSubjectOpenssl',
+                u'distinguished_name = {% call openssl.section() %}{{ datarules|first }}{% endcall %}',
+                [u'openssl']),
+            TransformationRule(
+                u'syntaxSubjectCertutil', u'-s {{ datarules|first }}',
+                [u'certutil']),
         ]),
     MappingRuleset(
         u'dataHostCN', u'DN with the principal\'s hostname as the CommonName',
         [
-            TransformationRule(u'dataHostOpenssl', u'three', [u'openssl']),
-            TransformationRule(u'dataHostCertutil', u'four', [u'certutil']),
+            TransformationRule(
+                u'dataHostOpenssl',
+                u'{{ipa.datafield(config.ipacertificatesubjectbase.0)}}\nCN={{ipa.datafield(subject.krbprincipalname.0|safe_attr("hostname"))}}',
+                [u'openssl']),
+            TransformationRule(
+                u'dataHostCertutil',
+                u'CN={{ipa.datafield(subject.krbprincipalname.0|safe_attr("hostname"))|quote}},{{ipa.datafield(config.ipacertificatesubjectbase.0)|quote}}',
+                [u'certutil']),
         ]),
     MappingRuleset(
         u'syntaxSAN', u'Syntax for adding a Subject Alternate Name',
         [
-            TransformationRule(u'syntaxSANOpenssl', u'five', [u'openssl']),
-            TransformationRule(u'syntaxSANCertutil', u'six', [u'certutil']),
+            TransformationRule(
+                u'syntaxSANOpenssl',
+                u'{% set extension = true %}subjectAltName = @{% call openssl.section() %}{{ datarules|join(\'\\n\') }}{% endcall %}',
+                [u'openssl']),
+            TransformationRule(
+                u'syntaxSANCertutil', u'--extSAN {{ datarules|join(\',\') }}',
+                [u'certutil']),
         ]),
     MappingRuleset(
         u'dataDNS',
         u'Constructs a SubjectAltName entry from the principal\'s hostname',
         [
-            TransformationRule(u'dataDNSOpenssl', u'seven', [u'openssl']),
-            TransformationRule(u'dataDNSCertutil', u'eight', [u'certutil']),
+            TransformationRule(
+                u'dataDNSOpenssl', u'DNS = {{ipa.datafield(subject.krbprincipalname.0|safe_attr("hostname"))}}',
+                [u'openssl']),
+            TransformationRule(
+                u'dataDNSCertutil', u'dns:{{ipa.datafield(subject.krbprincipalname.0|safe_attr("hostname"))|quote}}',
+                [u'certutil']),
         ]),
 )
 
