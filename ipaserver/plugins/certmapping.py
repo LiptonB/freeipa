@@ -6,6 +6,7 @@ import collections
 import jinja2
 import jinja2.ext
 import jinja2.sandbox
+import json
 
 from ipalib import api
 from ipalib import errors
@@ -448,3 +449,104 @@ class certmapping(Backend):
             reason=_('No transformation in "%(ruleset)s" rule supports'
                      ' format "%(helper)s"') %
             {'ruleset': ruleset['cn'][0], 'helper': helper})
+
+    def get_profile_mappings(self, profile_id):
+        """Return the list DNs for the certfieldmappingrules of a profile.
+
+        If the profile does not exist, returns an empty list.
+        """
+        mappings = []
+        try:
+            rules = api.Command.certfieldmappingrule_find(
+                profile_id)['result']
+            mappings = [rule['dn'] for rule in rules]
+        except (errors.NotFound, KeyError):
+            pass
+
+        return mappings
+
+    def delete_profile_mappings(self, profile_id, mapping_dns):
+        """Try to delete all the specified certfieldmappingrules.
+
+        If one of the specified rules does not exist, continue on to the
+        others.
+        """
+        for mapping in mapping_dns:
+            try:
+                api.Command.certfieldmappingrule_del(
+                    profile_id, mapping['cn'])
+            except errors.NotFound:
+                pass
+
+    def export_profile_mappings(self, profile_id):
+        rules = []
+        mappings = api.Command.certfieldmappingrule_find(
+            profile_id)['result']
+        for mapping in mappings:
+            syntax = mapping['ipacertsyntaxmapping'][0]['cn']
+            data = [rule['cn'] for rule in mapping['ipacertdatamapping']]
+            rules.append({'syntax': syntax, 'data': data})
+        return rules
+
+    def export_profile_mappings_json(self, profile_id):
+        rules = self.export_profile_mappings(profile_id)
+        return json.dumps(rules, indent=4) + '\n'
+
+    def _get_dn(self, cn):
+        mapping = api.Command.certmappingrule_show(cn)
+        return mapping['result']['dn']
+
+    def import_profile_mappings_json(self, profile_id, mappings_str):
+        try:
+            mappings = json.loads(mappings_str)
+        except ValueError:
+            raise errors.ValidationError(
+                name=_('mappings_file'), error=_('Not a valid JSON document'))
+
+        return self.import_profile_mappings(profile_id, mappings)
+
+    def import_profile_mappings(self, profile_id, mappings):
+        # Validate user input
+        if not isinstance(mappings, list):
+            raise errors.ValidationError(
+                name=_('mappings_file'), error=_('Must be a JSON array'))
+        for mapping in mappings:
+            if 'syntax' not in mapping:
+                raise errors.ValidationError(
+                    name=_('mappings_file'), error=_('Missing "syntax" key'))
+            if 'data' not in mapping:
+                raise errors.ValidationError(
+                    name=_('mappings_file'), error=_('Missing "data" key'))
+            if not isinstance(mapping['data'], list):
+                raise errors.ValidationError(
+                    name=_('mappings_file'),
+                    error=_('"data" key must be an array'))
+
+        old_maxindex = 0
+        # Find the highest-numbered field rule named "field<integer>"
+        for old_mapping in self.get_profile_mappings(profile_id):
+            _empty, _field, index_str = old_mapping['cn'].rpartition('field')
+            try:
+                index = int(index_str)
+            except ValueError:
+                continue
+            if index > old_maxindex:
+                old_maxindex = index
+
+        mapping_names = [u'field%s' % (old_maxindex + index + 1)
+                         for index in range(len(mappings))]
+
+        field_mappings = []
+        try:
+            for name, mapping in zip(mapping_names, mappings):
+                syntax = self._get_dn(mapping['syntax'])
+                data = [self._get_dn(rule) for rule in mapping['data']]
+                field_mapping = api.Command.certfieldmappingrule_add(
+                    profile_id, name, ipacertsyntaxmapping=syntax,
+                    ipacertdatamapping=data)['result']
+                field_mappings.append(field_mapping['dn'])
+        except:
+            self.delete_profile_mappings(profile_id, field_mappings)
+            raise
+
+        return field_mappings
