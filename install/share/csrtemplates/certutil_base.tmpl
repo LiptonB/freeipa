@@ -1,0 +1,4 @@
+{% raw -%}
+{% import "ipa_macros.tmpl" as ipa -%}
+{%- endraw %}
+certutil -R -a {{ options|join(' ') }}

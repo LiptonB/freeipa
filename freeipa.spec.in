@@ -1176,6 +1176,8 @@ fi
 %{_usr}/share/ipa/advise/legacy/*.template
 %dir %{_usr}/share/ipa/profiles
 %{_usr}/share/ipa/profiles/*.cfg
+%dir %{_usr}/share/ipa/csrtemplates
+%{_usr}/share/ipa/csrtemplates/*.tmpl
 %dir %{_usr}/share/ipa/ffextension
 %{_usr}/share/ipa/ffextension/bootstrap.js
 %{_usr}/share/ipa/ffextension/install.rdf
