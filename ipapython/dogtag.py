@@ -57,6 +57,12 @@ INCLUDED_PROFILES = (
             FieldMapping(u'syntaxSAN', [u'dataDNS']),
         ]),
     Profile(
+        u'userCert', u'Standard profile for users', True,
+        [
+            FieldMapping(u'syntaxSubject', [u'dataUsernameCN']),
+            FieldMapping(u'syntaxSAN', [u'dataEmail']),
+        ]),
+    Profile(
         u'IECUserRoles',
         u'User profile that includes IECUserRoles extension from request',
         True, []),
@@ -88,6 +94,19 @@ INCLUDED_MAPPING_RULESETS = (
                 [u'certutil']),
         ]),
     MappingRuleset(
+        u'dataUsernameCN',
+        u'DN with the principal\'s username as the CommonName',
+        [
+            TransformationRule(
+                u'dataUsernameOpenssl',
+                u'{{ipa.datafield(config.ipacertificatesubjectbase.0)}}\nCN={{ipa.datafield(subject.uid.0)}}',
+                [u'openssl']),
+            TransformationRule(
+                u'dataUsernameCertutil',
+                u'CN={{ipa.datafield(subject.uid.0)|quote}},{{ipa.datafield(config.ipacertificatesubjectbase.0)|quote}}',
+                [u'certutil']),
+        ]),
+    MappingRuleset(
         u'syntaxSAN', u'Syntax for adding a Subject Alternate Name',
         [
             TransformationRule(
@@ -107,6 +126,17 @@ INCLUDED_MAPPING_RULESETS = (
                 [u'openssl']),
             TransformationRule(
                 u'dataDNSCertutil', u'dns:{{ipa.datafield(subject.krbprincipalname.0|safe_attr("hostname"))|quote}}',
+                [u'certutil']),
+        ]),
+    MappingRuleset(
+        u'dataEmail',
+        u'Constructs a SubjectAltName entry from the principal\'s email',
+        [
+            TransformationRule(
+                u'dataEmailOpenssl', u'email = {{ipa.datafield(subject.mail.0)}}',
+                [u'openssl']),
+            TransformationRule(
+                u'dataEmailCertutil', u'email:{{ipa.datafield(subject.mail.0)|quote}}',
                 [u'certutil']),
         ]),
 )
