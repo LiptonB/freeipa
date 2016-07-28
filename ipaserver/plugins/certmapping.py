@@ -627,10 +627,12 @@ class certmapping(Backend):
     def get_user_prompts(self, profile_id, helper):
         template = self.__compose_template(profile_id, helper)
         try:
-            prompts = getattr(template.module, 'emptyprompts', {})
+            module = template.make_module(
+                {'subject': {}, 'config': {}, 'userprompts': {}})
         except jinja2.UndefinedError:
             raise errors.CertificateMappingError(reason=_(
                 'Template error when collecting user prompts'))
+        prompts = getattr(module, 'emptyprompts', {})
         return prompts
 
     def get_rule_for_helper(self, ruleset, helper):
