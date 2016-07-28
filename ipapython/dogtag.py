@@ -60,7 +60,7 @@ INCLUDED_PROFILES = (
         u'userCert', u'Standard profile for users', True,
         [
             FieldMapping(u'syntaxSubject', [u'dataUsernameCN']),
-            FieldMapping(u'syntaxSAN', [u'dataEmail']),
+            FieldMapping(u'syntaxSAN', [u'dataEmail', u'dataUserSpecDN']),
         ]),
     Profile(
         u'IECUserRoles',
@@ -137,6 +137,17 @@ INCLUDED_MAPPING_RULESETS = (
                 [u'openssl']),
             TransformationRule(
                 u'dataEmailCertutil', u'email:{{ipa.datafield(subject.mail.0)|quote}}',
+                [u'certutil']),
+        ]),
+    MappingRuleset(
+        u'dataUserSpecDN',
+        u'Constructs a SubjectAltName entry from a DN provided by the user',
+        [
+            TransformationRule(
+                u'dataUserSpecDNOpenssl', u'dirName = {{ipa.datafield(userprompt("Directory name", "DN"))}}',
+                [u'openssl']),
+            TransformationRule(
+                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(userprompt("Directory name", "DN"))|quote}}',
                 [u'certutil']),
         ]),
 )

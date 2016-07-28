@@ -40,3 +40,13 @@ produces an empty string, the entire data rule will be suppressed. #}
 {% do renderdata.update(all=false) -%}
 {% endif -%}
 {% endmacro %}
+
+{% set emptyprompts = {} %}
+
+{% macro userprompt(prompt, name) -%}
+{% if userprompts[name] is defined -%}
+{{ userprompts[name] -}}
+{% else -%}
+{% do emptyprompts.update(name=prompt) -%}
+{% endif -%}
+{% endmacro %}

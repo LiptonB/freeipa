@@ -383,6 +383,45 @@ class cert_get_requestdata(Command):
         )
 
 
+@register()
+class cert_get_userprompts(Command):
+    __doc__ = _(
+        'Report certificate signing request fields requiring user input.')
+
+    takes_options = (
+        Str('profile_id?',
+            validate_profile_id,
+            label=_('Profile ID'),
+            doc=_('Certificate Profile to use. If not specified, uses the CA'
+                  ' default.'),
+        ),
+        Str('format',
+            label=_('Name of CSR generation tool'),
+            doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
+                  ' create CSR'),
+        ),
+    )
+
+    has_output = (
+        output.Output(
+            'result',
+            type=dict,
+            doc=_('Dictionary mapping variable name to value'),
+        ),
+    )
+
+    def execute(self, **kw):
+        profile_id = kw.get('profile_id', self.Backend.ra.DEFAULT_PROFILE)
+        helper = kw.get('format')
+
+        prompts = self.Backend.certmapping.get_user_prompts(
+            profile_id, helper)
+
+        return dict(
+            result=prompts
+        )
+
+
 class IndexableUndefined(jinja2.Undefined):
     def __getitem__(self, key):
         return jinja2.Undefined(
@@ -415,20 +454,31 @@ class Formatter(object):
             current_level = current_level[part]
         current_level[parts[-1]] = passthrough
 
-    def format(self, syntax_rules, render_data):
+    def build_response(self, template, render_data):
         """
-        Combine the values into a string for a particular CSR generator.
+        Use the template to construct a response dictionary.
+
+        :param template: jinja2.Template used for formatting the response data.
+        :param render_data: dict of data from LDAP for the final render.
+
+        :returns: dict. Keys represent the type of data (e.g. commandline,
+            configfile), values contain the CSR generation data that should be
+            returned.
+        """
+        raise NotImplementedError('Formatter class can not be used directly')
+
+    def build_template(self, syntax_rules):
+        """
+        Construct a template that can produce CSR generator strings.
 
         :param syntax_rules: list of prepared syntax rules to insert into the
             template.
-        :param render_data: dict of data from LDAP for the final render.
 
-        :returns: unicode string presenting the configuration in a form
-            suitable for input into the CSR generator.
+        :returns: jinja2.Template that can be rendered to produce the CSR data.
         """
-        raise NotImplementedError('Formatter must be subclassed before using.')
+        raise NotImplementedError('Formatter class can not be used directly')
 
-    def _format(self, base_template_name, base_template_params, render_data):
+    def _build_template(self, base_template_name, base_template_params):
         base_template = self.jinja2.get_template(
             base_template_name, globals=self.passthrough_globals)
 
@@ -442,12 +492,7 @@ class Formatter(object):
             'Formatting with template: %s' % combined_template_source)
         combined_template = self.jinja2.from_string(combined_template_source)
 
-        try:
-            script = combined_template.render(**render_data)
-        except jinja2.UndefinedError:
-            raise errors.CertificateMappingError(reason=_(
-                'Template error when formatting certificate data'))
-        return dict(script=script)
+        return combined_template
 
     def _wrap_rule(self, rule, rule_type):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
@@ -478,22 +523,30 @@ class OpenSSLFormatter(Formatter):
         super(OpenSSLFormatter, self).__init__(backend)
         self._define_passthrough('openssl.section')
 
-    def format(self, syntax_rules, render_data):
+    def build_template(self, syntax_rules):
         parameters = [rule.template for rule in syntax_rules
                       if not rule.is_extension]
         extensions = [rule.template for rule in syntax_rules
                       if rule.is_extension]
 
-        rendered = self._format(
+        template = self._build_template(
             'openssl_base.tmpl',
-            {'parameters': parameters, 'extensions': extensions}, render_data)
+            {'parameters': parameters, 'extensions': extensions})
+        return template
 
-        if not 'distinguished_name =' in rendered['script']:
+    def build_response(self, template, render_data):
+        try:
+            script = template.render(**render_data)
+        except jinja2.UndefinedError:
+            raise errors.CertificateMappingError(reason=_(
+                'Template error when formatting certificate data'))
+
+        if not 'distinguished_name =' in script:
             raise errors.CertificateMappingError(reason=_(
                 'Certificate subject could not be generated. You may need to'
                 ' use a different certificate profile for this principal.'))
 
-        return rendered
+        return dict(script=script)
 
     def prepare_syntax_rule(self, syntax_rule, data_rules):
         """Overrides method to pull out whether rule is an extension or not."""
@@ -511,16 +564,23 @@ class OpenSSLFormatter(Formatter):
 
 
 class CertutilFormatter(Formatter):
-    def format(self, syntax_rules, render_data):
-        rendered = self._format(
-            'certutil_base.tmpl', {'options': syntax_rules}, render_data)
+    def build_template(self, syntax_rules):
+        return self._build_template(
+            'certutil_base.tmpl', {'options': syntax_rules})
 
-        if not ' -s ' in rendered['script']:
+    def build_response(self, template, render_data):
+        try:
+            script = template.render(**render_data)
+        except jinja2.UndefinedError:
+            raise errors.CertificateMappingError(reason=_(
+                'Template error when formatting certificate data'))
+
+        if not ' -s ' in script:
             raise errors.CertificateMappingError(reason=_(
                 'Certificate subject could not be generated. You may need to'
                 ' use a different certificate profile for this principal.'))
 
-        return rendered
+        return dict(script=script)
 
 
 @register()
@@ -530,10 +590,7 @@ class certmapping(Backend):
         'certutil': CertutilFormatter,
     }
 
-    def get_request_data(self, principal, profile_id, helper):
-        config = api.Command.config_show()['result']
-        render_data = {'subject': principal, 'config': config}
-
+    def __compose_template(self, profile_id, helper):
         formatter = self.FORMATTERS[helper](self)
 
         syntax_rules = []
@@ -555,8 +612,26 @@ class certmapping(Backend):
             syntax_rules.append(formatter.prepare_syntax_rule(
                 syntax_rule, data_rules))
 
-        formatted_values = formatter.format(syntax_rules, render_data)
-        return formatted_values
+        template = formatter.build_template(syntax_rules)
+        return template
+
+    def get_request_data(self, principal, profile_id, helper):
+        config = api.Command.config_show()['result']
+        render_data = {'subject': principal, 'config': config}
+
+        template = self.__compose_template(profile_id, helper)
+
+        response = formatter.build_response(template, render_data)
+        return response
+
+    def get_user_prompts(self, profile_id, helper):
+        template = self.__compose_template(profile_id, helper)
+        try:
+            prompts = getattr(template.module, 'emptyprompts', {})
+        except jinja2.UndefinedError:
+            raise errors.CertificateMappingError(reason=_(
+                'Template error when collecting user prompts'))
+        return prompts
 
     def get_rule_for_helper(self, ruleset, helper):
         rules = api.Command.certtransformationrule_find(
