@@ -44,8 +44,8 @@ produces an empty string, the entire data rule will be suppressed. #}
 {% set emptyprompts = {} %}
 
 {% macro userprompt(prompt, name) -%}
-{% if userprompts[name] is defined -%}
-{{ userprompts[name] -}}
+{% if userdata[name] is defined -%}
+{{ userdata[name] -}}
 {% else -%}
 {% do emptyprompts.update(name=prompt) -%}
 {% endif -%}

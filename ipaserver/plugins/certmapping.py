@@ -362,7 +362,7 @@ class cert_get_requestdata(Command):
         principal = kw.get('principal')
         profile_id = kw.get('profile_id')
         helper = kw.get('helper')
-        userdata = kw.get('userdata')
+        userdata = kw.get('userdata', {})
 
         try:
             if principal.is_host:
@@ -540,19 +540,13 @@ class OpenSSLFormatter(Formatter):
             {'parameters': parameters, 'extensions': extensions})
         return template
 
-    def build_response(self, template, render_data):
-        try:
-            script = template.render(**render_data)
-        except jinja2.UndefinedError:
-            raise errors.CertificateMappingError(reason=_(
-                'Template error when formatting certificate data'))
-
-        if not 'distinguished_name =' in script:
+    def build_response(self, rendered):
+        if not 'distinguished_name =' in rendered:
             raise errors.CertificateMappingError(reason=_(
                 'Certificate subject could not be generated. You may need to'
                 ' use a different certificate profile for this principal.'))
 
-        return dict(script=script)
+        return dict(script=rendered)
 
     def prepare_syntax_rule(self, syntax_rule, data_rules):
         """Overrides method to pull out whether rule is an extension or not."""
@@ -574,19 +568,13 @@ class CertutilFormatter(Formatter):
         return self._build_template(
             'certutil_base.tmpl', {'options': syntax_rules})
 
-    def build_response(self, template, render_data):
-        try:
-            script = template.render(**render_data)
-        except jinja2.UndefinedError:
-            raise errors.CertificateMappingError(reason=_(
-                'Template error when formatting certificate data'))
-
-        if not ' -s ' in script:
+    def build_response(self, rendered):
+        if not ' -s ' in rendered:
             raise errors.CertificateMappingError(reason=_(
                 'Certificate subject could not be generated. You may need to'
                 ' use a different certificate profile for this principal.'))
 
-        return dict(script=script)
+        return dict(script=rendered)
 
 
 @register()
@@ -623,13 +611,21 @@ class certmapping(Backend):
 
     def get_request_data(self, principal, profile_id, helper, userdata):
         config = api.Command.config_show()['result']
-        userprompts = userdata or {}
         render_data = {'subject': principal, 'config': config,
-                       'userprompts': userprompts}
+                       'userdata': userdata}
 
         template = self.__compose_template(profile_id, helper)
+        try:
+            module = template.make_module(render_data)
+        except jinja2.UndefinedError:
+            raise errors.CertificateMappingError(reason=_(
+                'Template error when formatting certificate data'))
+        prompts = getattr(module, 'emptyprompts', {})
 
-        response = formatter.build_response(template, render_data)
+        if prompts:
+            raise errors.RequirementError('userdata[%s]' % prompts.keys())
+
+        response = formatter.build_response(unicode(module))
         return response
 
     def get_user_prompts(self, profile_id, helper):
