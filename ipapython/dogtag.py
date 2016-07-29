@@ -144,7 +144,7 @@ INCLUDED_MAPPING_RULESETS = (
         u'Constructs a SubjectAltName entry from a DN provided by the user',
         [
             TransformationRule(
-                u'dataUserSpecDNOpenssl', u'dirName = {{ipa.datafield(ipa.userprompt("Directory name", "DN"))}}',
+                u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(ipa.userprompt("Directory name", "DN").split(",")|reverse|join("\n"))}}{% endcall %}',
                 [u'openssl']),
             TransformationRule(
                 u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(ipa.userprompt("Directory name", "DN"))|quote}}',

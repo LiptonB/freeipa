@@ -30,9 +30,10 @@ class cert_get_requestdata(CommandOverride):
         if 'out' in options:
             util.check_writable_file(options['out'])
 
-        profile_id = kw.get('profile_id')
-        format = kw.get('format')
-        prompts = self.api.Command.cert_get_userprompts(profile_id=profile_id, format=format)
+        profile_id = options.get('profile_id')
+        format = options.get('format')
+        prompts = self.api.Command.cert_get_userprompts(
+            profile_id=profile_id, format=format)['result']
 
         userdata = {}
         for name, prompt in prompts.iteritems():
