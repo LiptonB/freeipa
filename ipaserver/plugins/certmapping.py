@@ -10,9 +10,9 @@ import json
 
 from ipalib import api
 from ipalib import errors
-from ipalib import Backend, DNParam, Str, Command
+from ipalib import Backend, Command
 from ipalib import output
-from ipalib.parameters import Principal
+from ipalib.parameters import Dict, DNParam, Str, Principal
 from ipalib.plugable import Registry
 from ipalib.text import _
 from ipapython.templating import IPAExtension
