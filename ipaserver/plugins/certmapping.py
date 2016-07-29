@@ -343,7 +343,7 @@ class cert_get_requestdata(Command):
         Str('out?',
             doc=_('Write CSR generation script to file'),
         ),
-        Dict('userdata',
+        Dict('userdata?',
              label=_('User-specified data items'),
              doc=_('Dict of user-specified data to include in the appropriate'
                    ' cert fields.')
