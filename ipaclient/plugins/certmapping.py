@@ -30,7 +30,18 @@ class cert_get_requestdata(CommandOverride):
         if 'out' in options:
             util.check_writable_file(options['out'])
 
-        result = super(cert_get_requestdata, self).forward(*keys, **options)
+        profile_id = kw.get('profile_id')
+        format = kw.get('format')
+        prompts = self.api.Command.cert_get_userprompts(profile_id=profile_id, format=format)
+
+        userdata = {}
+        for name, prompt in prompts.iteritems():
+            userdata[name] = self.Backend.textui.prompt(prompt)
+
+        cmd_options = options.copy()
+        cmd_options['userdata'] = userdata
+
+        result = super(cert_get_requestdata, self).forward(*keys, **cmd_options)
 
         if 'out' in options and 'script' in result['result']:
             with open(options['out'], 'wb') as f:

@@ -346,7 +346,8 @@ class cert_get_requestdata(Command):
         Dict('userdata?',
              label=_('User-specified data items'),
              doc=_('Dict of user-specified data to include in the appropriate'
-                   ' cert fields.')
+                   ' cert fields.'),
+             flags=('no_option',),
         ),
     )
 
@@ -624,7 +625,8 @@ class certmapping(Backend):
 
         if prompts:
             raise errors.RequirementError(
-                name=('userdata[%s]' % prompts.keys()))
+                name=(_('User-specified items %(items)s')
+                      % {'items': prompts.keys()}))
 
         # TODO(blipton): Can we stop creating formatter twice?
         formatter = self.FORMATTERS[helper](self)
