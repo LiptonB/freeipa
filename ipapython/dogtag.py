@@ -147,7 +147,7 @@ INCLUDED_MAPPING_RULESETS = (
                 u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(ipa.userprompt("Directory name", "DN").split(",")|reverse|join("\n"))}}{% endcall %}',
                 [u'openssl']),
             TransformationRule(
-                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(ipa.userprompt("Directory name", "DN"))|quote}}',
+                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(ipa.userprompt("Directory name", "DN")|replace(",", ";")|quote}}',
                 [u'certutil']),
         ]),
 )
