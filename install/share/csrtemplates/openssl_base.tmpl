@@ -1,6 +1,7 @@
 {% raw -%}
+{% set emptyprompts = {} %}
 {% import "openssl_macros.tmpl" as openssl -%}
-{% import "ipa_macros.tmpl" as ipa -%}
+{% import "ipa_macros.tmpl" as ipa with context -%}
 {%- endraw %}
 #!/bin/bash -e
 

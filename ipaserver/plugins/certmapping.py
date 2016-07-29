@@ -623,8 +623,11 @@ class certmapping(Backend):
         prompts = getattr(module, 'emptyprompts', {})
 
         if prompts:
-            raise errors.RequirementError('userdata[%s]' % prompts.keys())
+            raise errors.RequirementError(
+                name=('userdata[%s]' % prompts.keys()))
 
+        # TODO(blipton): Can we stop creating formatter twice?
+        formatter = self.FORMATTERS[helper](self)
         response = formatter.build_response(unicode(module))
         return response
 
@@ -637,7 +640,9 @@ class certmapping(Backend):
             raise errors.CertificateMappingError(reason=_(
                 'Template error when collecting user prompts'))
         prompts = getattr(module, 'emptyprompts', {})
-        return prompts
+        unicode_prompts = dict(
+            (unicode(k), unicode(v)) for k, v in prompts.iteritems())
+        return unicode_prompts
 
     def get_rule_for_helper(self, ruleset, helper):
         rules = api.Command.certtransformationrule_find(

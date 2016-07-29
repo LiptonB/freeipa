@@ -1,5 +1,6 @@
 {% raw -%}
-{% import "ipa_macros.tmpl" as ipa -%}
+{% set emptyprompts = {} %}
+{% import "ipa_macros.tmpl" as ipa with context -%}
 {%- endraw %}
 #!/bin/bash -e
 
