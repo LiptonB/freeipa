@@ -343,6 +343,11 @@ class cert_get_requestdata(Command):
         Str('out?',
             doc=_('Write CSR generation script to file'),
         ),
+        Dict('userdata',
+             label=_('User-specified data items'),
+             doc=_('Dict of user-specified data to include in the appropriate'
+                   ' cert fields.')
+        ),
     )
 
     has_output = (
@@ -357,6 +362,7 @@ class cert_get_requestdata(Command):
         principal = kw.get('principal')
         profile_id = kw.get('profile_id')
         helper = kw.get('helper')
+        userdata = kw.get('userdata')
 
         try:
             if principal.is_host:
@@ -374,7 +380,7 @@ class cert_get_requestdata(Command):
         principal_obj = principal_obj['result']
 
         request_data = self.Backend.certmapping.get_request_data(
-            principal_obj, profile_id, helper)
+            principal_obj, profile_id, helper, userdata)
 
         result = {}
         result.update(request_data)
@@ -615,9 +621,11 @@ class certmapping(Backend):
         template = formatter.build_template(syntax_rules)
         return template
 
-    def get_request_data(self, principal, profile_id, helper):
+    def get_request_data(self, principal, profile_id, helper, userdata):
         config = api.Command.config_show()['result']
-        render_data = {'subject': principal, 'config': config}
+        userprompts = userdata or {}
+        render_data = {'subject': principal, 'config': config,
+                       'userprompts': userprompts}
 
         template = self.__compose_template(profile_id, helper)
 
