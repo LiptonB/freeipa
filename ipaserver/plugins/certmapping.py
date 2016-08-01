@@ -401,7 +401,7 @@ class OpenSSLFormatter(Formatter):
             {'parameters': parameters, 'extensions': extensions}, render_data)
 
         if not 'distinguished_name =' in rendered:
-            raise errros.CertMappingError(reason=_(
+            raise errors.CertMappingError(reason=_(
                 'Certificate subject could be generated. You may need to use a'
                 ' different certificate profile for this principal.'))
 
@@ -428,7 +428,7 @@ class CertutilFormatter(Formatter):
             'certutil_base.tmpl', {'options': syntax_rules}, render_data)
 
         if not ' -s ' in rendered:
-            raise errros.CertMappingError(reason=_(
+            raise errors.CertMappingError(reason=_(
                 'Certificate subject could be generated. You may need to use a'
                 ' different certificate profile for this principal.'))
 
