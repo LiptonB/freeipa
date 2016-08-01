@@ -75,6 +75,20 @@ class certfieldmappingrule(LDAPObject):
         ),
     )
 
+    permission_filter_objectclasses = ['ipacertfieldmappingrule']
+    managed_permissions = {
+        'System: Read Certificate Field Mappings': {
+            'replaces_global_anonymous_aci': True,
+            'ipapermbindruletype': 'all',
+            'ipapermright': {'read', 'search', 'compare'},
+            'ipapermdefaultattr': {
+                'cn',
+                'ipacertsyntaxmapping',
+                'ipacertdatamapping',
+            },
+        },
+    }
+
 
 @register()
 class certfieldmappingrule_add(LDAPCreate):
@@ -137,6 +151,19 @@ class certmappingrule(LDAPObject):
             doc=_('Description of this mapping rule'),
         ),
     )
+
+    permission_filter_objectclasses = ['ipacertmappingruleset']
+    managed_permissions = {
+        'System: Read Certificate Mapping Rules': {
+            'replaces_global_anonymous_aci': True,
+            'ipapermbindruletype': 'all',
+            'ipapermright': {'read', 'search', 'compare'},
+            'ipapermdefaultattr': {
+                'cn',
+                'description',
+            },
+        },
+    }
 
 
 @register()
@@ -208,6 +235,20 @@ class certtransformationrule(LDAPObject):
                   ' this rule is targeted'),
         ),
     )
+
+    permission_filter_objectclasses = ['ipacerttransformationrule']
+    managed_permissions = {
+        'System: Read Certificate Transformation Rules': {
+            'replaces_global_anonymous_aci': True,
+            'ipapermbindruletype': 'all',
+            'ipapermright': {'read', 'search', 'compare'},
+            'ipapermdefaultattr': {
+                'cn',
+                'ipacerttransformationtemplate',
+                'ipacerttransformationhelper',
+            },
+        },
+    }
 
 
 @register()
