@@ -85,6 +85,7 @@ class certfieldmappingrule(LDAPObject):
                 'cn',
                 'ipacertsyntaxmapping',
                 'ipacertdatamapping',
+                'objectclass',
             },
         },
     }
@@ -161,6 +162,7 @@ class certmappingrule(LDAPObject):
             'ipapermdefaultattr': {
                 'cn',
                 'description',
+                'objectclass',
             },
         },
     }
@@ -246,6 +248,7 @@ class certtransformationrule(LDAPObject):
                 'cn',
                 'ipacerttransformationtemplate',
                 'ipacerttransformationhelper',
+                'objectclass',
             },
         },
     }
