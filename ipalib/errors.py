@@ -1407,15 +1407,13 @@ class OperationNotSupportedForPrincipalType(ExecutionError):
         '%(operation)s is not supported for %(principal_type)s principals')
 
 
-class RequiredCertificateFieldMissing(ExecutionError):
+class CertMappingError(ExecutionError):
     """
-    **4035** Raised when generated CSR data is missing a required component
+    **4035** Raised when a valid cert request config can not be generated
     """
 
     errno = 4035
-    format = _(
-        'No %(field)s could be generated. You may need to use a different'
-        ' certificate profile for this principal.')
+    format = _('%(reason)s')
 
 
 class BuiltinError(ExecutionError):

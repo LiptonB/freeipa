@@ -343,11 +343,23 @@ class Formatter(object):
     def _format(self, base_template_name, base_template_params, render_data):
         base_template = self.jinja2.get_template(
             base_template_name, globals=self.passthrough_globals)
-        combined_template_source = base_template.render(**base_template_params)
+
+        try:
+            combined_template_source = base_template.render(**base_template_params)
+        except jinja2.UndefinedError:
+            raise errors.CertMappingError(reason=_(
+                'Template error when formatting certificate data'))
+
         self.backend.debug(
             'Formatting with template: %s' % combined_template_source)
         combined_template = self.jinja2.from_string(combined_template_source)
-        return combined_template.render(**render_data)
+
+        try:
+            rendered = combined_template.render(**render_data)
+        except jinja2.UndefinedError:
+            raise errors.CertMappingError(reason=_(
+                'Template error when formatting certificate data'))
+        return rendered
 
     def _wrap_rule(self, rule, rule_type):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
@@ -361,8 +373,12 @@ class Formatter(object):
         self.backend.debug('Syntax rule template: %s' % syntax_rule)
         template = self.jinja2.from_string(
             syntax_rule, globals=self.passthrough_globals)
-        prepared_template = self._wrap_rule(
-            template.render(datarules=data_rules), 'syntax')
+        try:
+            rendered = template.render(datarules=data_rules)
+        except jinja2.UndefinedError:
+            raise errors.CertMappingError(reason=_(
+                'Template error when formatting certificate data'))
+        prepared_template = self._wrap_rule(rendered, 'syntax')
         return prepared_template
 
 
@@ -385,7 +401,9 @@ class OpenSSLFormatter(Formatter):
             {'parameters': parameters, 'extensions': extensions}, render_data)
 
         if not 'distinguished_name =' in rendered:
-            raise errors.RequiredCertificateFieldMissing(field='distinguished_name')
+            raise errros.CertMappingError(reason=_(
+                'Certificate subject could be generated. You may need to use a'
+                ' different certificate profile for this principal.'))
 
         return dict(configfile=rendered)
 
@@ -394,9 +412,13 @@ class OpenSSLFormatter(Formatter):
         self.backend.debug('Syntax rule template: %s' % syntax_rule)
         template = self.jinja2.from_string(
             syntax_rule, globals=self.passthrough_globals)
-        is_extension = getattr(template.module, 'extension', False)
-        prepared_template = self._wrap_rule(
-            template.render(datarules=data_rules), 'syntax')
+        try:
+            is_extension = getattr(template.module, 'extension', False)
+            rendered = template.render(datarules=data_rules)
+        except jinja2.UndefinedError:
+            raise errors.CertMappingError(reason=_(
+                'Template error when formatting certificate data'))
+        prepared_template = self._wrap_rule(rendered, 'syntax')
         return self.SyntaxRule(prepared_template, is_extension)
 
 
@@ -406,7 +428,9 @@ class CertutilFormatter(Formatter):
             'certutil_base.tmpl', {'options': syntax_rules}, render_data)
 
         if not ' -s ' in rendered:
-            raise errors.RequiredCertificateFieldMissing(field='subject')
+            raise errros.CertMappingError(reason=_(
+                'Certificate subject could be generated. You may need to use a'
+                ' different certificate profile for this principal.'))
 
         return dict(commandline=rendered)
 
