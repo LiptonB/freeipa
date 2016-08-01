@@ -75,6 +75,29 @@ class certfieldmappingrule(LDAPObject):
         ),
     )
 
+    permission_filter_objectclasses = ['ipacertfieldmappingrule']
+    managed_permissions = {
+        'System: Read Certificate Field Mappings': {
+            'replaces_global_anonymous_aci': True,
+            'ipapermbindruletype': 'all',
+            'ipapermright': {'read', 'search', 'compare'},
+            'ipapermdefaultattr': {
+                'cn',
+                'ipacertsyntaxmapping',
+                'ipacertdatamapping',
+                'objectclass',
+            },
+        },
+        'System: Import Certificate Profile Mappings': {
+            'ipapermright': {'add'},
+            'default_privileges': {'CA Administrator'},
+        },
+        'System: Delete Certificate Profile Mappings': {
+            'ipapermright': {'delete'},
+            'default_privileges': {'CA Administrator'},
+        },
+    }
+
 
 @register()
 class certfieldmappingrule_add(LDAPCreate):
@@ -137,6 +160,36 @@ class certmappingrule(LDAPObject):
             doc=_('Description of this mapping rule'),
         ),
     )
+
+    permission_filter_objectclasses = ['ipacertmappingruleset']
+    managed_permissions = {
+        'System: Read Certificate Mapping Rules': {
+            'replaces_global_anonymous_aci': True,
+            'ipapermbindruletype': 'all',
+            'ipapermright': {'read', 'search', 'compare'},
+            'ipapermdefaultattr': {
+                'cn',
+                'description',
+                'objectclass',
+            },
+        },
+        'System: Create Certificate Mapping Rules': {
+            'ipapermright': {'add'},
+            'default_privileges': {'CA Administrator'},
+        },
+        'System: Update Certificate Mapping Rules': {
+            'ipapermright': {'write'},
+            'default_privileges': {'CA Administrator'},
+            'ipapermdefaultattr': {
+                'cn',
+                'description',
+            },
+        },
+        'System: Delete Certificate Mapping Rules': {
+            'ipapermright': {'delete'},
+            'default_privileges': {'CA Administrator'},
+        },
+    }
 
 
 @register()
@@ -208,6 +261,38 @@ class certtransformationrule(LDAPObject):
                   ' this rule is targeted'),
         ),
     )
+
+    permission_filter_objectclasses = ['ipacerttransformationrule']
+    managed_permissions = {
+        'System: Read Certificate Transformation Rules': {
+            'replaces_global_anonymous_aci': True,
+            'ipapermbindruletype': 'all',
+            'ipapermright': {'read', 'search', 'compare'},
+            'ipapermdefaultattr': {
+                'cn',
+                'ipacerttransformationtemplate',
+                'ipacerttransformationhelper',
+                'objectclass',
+            },
+        },
+        'System: Create Certificate Transformation Rules': {
+            'ipapermright': {'add'},
+            'default_privileges': {'CA Administrator'},
+        },
+        'System: Update Certificate Transformation Rules': {
+            'ipapermright': {'write'},
+            'default_privileges': {'CA Administrator'},
+            'ipapermdefaultattr': {
+                'cn',
+                'ipacerttransformationtemplate',
+                'ipacerttransformationhelper',
+            },
+        },
+        'System: Delete Certificate Transformation Rules': {
+            'ipapermright': {'delete'},
+            'default_privileges': {'CA Administrator'},
+        },
+    }
 
 
 @register()
