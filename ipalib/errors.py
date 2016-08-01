@@ -1407,6 +1407,17 @@ class OperationNotSupportedForPrincipalType(ExecutionError):
         '%(operation)s is not supported for %(principal_type)s principals')
 
 
+class RequiredCertificateFieldMissing(ExecutionError):
+    """
+    **4035** Raised when generated CSR data is missing a required component
+    """
+
+    errno = 4035
+    format = _(
+        'No %(field)s could be generated. You may need to use a different'
+        ' certificate profile for this principal.')
+
+
 class BuiltinError(ExecutionError):
     """
     **4100** Base class for builtin execution errors (*4100 - 4199*).

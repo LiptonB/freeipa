@@ -383,6 +383,10 @@ class OpenSSLFormatter(Formatter):
         rendered = self._format(
             'openssl_base.tmpl',
             {'parameters': parameters, 'extensions': extensions}, render_data)
+
+        if not 'distinguished_name =' in rendered:
+            raise errors.RequiredCertificateFieldMissing(field='distinguished_name')
+
         return dict(configfile=rendered)
 
     def prepare_syntax_rule(self, syntax_rule, data_rules):
@@ -400,6 +404,10 @@ class CertutilFormatter(Formatter):
     def format(self, syntax_rules, render_data):
         rendered = self._format(
             'certutil_base.tmpl', {'options': syntax_rules}, render_data)
+
+        if not ' -s ' in rendered:
+            raise errors.RequiredCertificateFieldMissing(field='subject')
+
         return dict(commandline=rendered)
 
 
