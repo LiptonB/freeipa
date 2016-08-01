@@ -41,9 +41,19 @@ aci: (targetattr = "cn || description || ipaenabledflag")(targetfilter = "(objec
 dn: cn=caacls,cn=ca,dc=ipa,dc=example
 aci: (targetattr = "cn || createtimestamp || description || entryusn || hostcategory || ipacacategory || ipacertprofilecategory || ipaenabledflag || ipamemberca || ipamembercertprofile || ipauniqueid || member || memberhost || memberservice || memberuser || modifytimestamp || objectclass || servicecategory || usercategory")(targetfilter = "(objectclass=ipacaacl)")(version 3.0;acl "permission:System: Read CA ACLs";allow (compare,read,search) userdn = "ldap:///all";)
 dn: dc=ipa,dc=example
+aci: (targetfilter = "(objectclass=ipacertfieldmappingrule)")(version 3.0;acl "permission:System: Delete Certificate Profile Mappings";allow (delete) groupdn = "ldap:///cn=System: Delete Certificate Profile Mappings,cn=permissions,cn=pbac,dc=ipa,dc=example";)
+dn: dc=ipa,dc=example
+aci: (targetfilter = "(objectclass=ipacertfieldmappingrule)")(version 3.0;acl "permission:System: Import Certificate Profile Mappings";allow (add) groupdn = "ldap:///cn=System: Import Certificate Profile Mappings,cn=permissions,cn=pbac,dc=ipa,dc=example";)
+dn: dc=ipa,dc=example
 aci: (targetattr = "cn || createtimestamp || entryusn || ipacertdatamapping || ipacertsyntaxmapping || modifytimestamp || objectclass")(targetfilter = "(objectclass=ipacertfieldmappingrule)")(version 3.0;acl "permission:System: Read Certificate Field Mappings";allow (compare,read,search) userdn = "ldap:///all";)
 dn: cn=mappingrulesets,cn=ca,dc=ipa,dc=example
+aci: (targetfilter = "(objectclass=ipacertmappingruleset)")(version 3.0;acl "permission:System: Create Certificate Mapping Rules";allow (add) groupdn = "ldap:///cn=System: Create Certificate Mapping Rules,cn=permissions,cn=pbac,dc=ipa,dc=example";)
+dn: cn=mappingrulesets,cn=ca,dc=ipa,dc=example
+aci: (targetfilter = "(objectclass=ipacertmappingruleset)")(version 3.0;acl "permission:System: Delete Certificate Mapping Rules";allow (delete) groupdn = "ldap:///cn=System: Delete Certificate Mapping Rules,cn=permissions,cn=pbac,dc=ipa,dc=example";)
+dn: cn=mappingrulesets,cn=ca,dc=ipa,dc=example
 aci: (targetattr = "cn || createtimestamp || description || entryusn || modifytimestamp || objectclass")(targetfilter = "(objectclass=ipacertmappingruleset)")(version 3.0;acl "permission:System: Read Certificate Mapping Rules";allow (compare,read,search) userdn = "ldap:///all";)
+dn: cn=mappingrulesets,cn=ca,dc=ipa,dc=example
+aci: (targetattr = "cn || description")(targetfilter = "(objectclass=ipacertmappingruleset)")(version 3.0;acl "permission:System: Update Certificate Mapping Rules";allow (write) groupdn = "ldap:///cn=System: Update Certificate Mapping Rules,cn=permissions,cn=pbac,dc=ipa,dc=example";)
 dn: cn=certprofiles,cn=ca,dc=ipa,dc=example
 aci: (targetfilter = "(objectclass=ipacertprofile)")(version 3.0;acl "permission:System: Delete Certificate Profile";allow (delete) groupdn = "ldap:///cn=System: Delete Certificate Profile,cn=permissions,cn=pbac,dc=ipa,dc=example";)
 dn: cn=certprofiles,cn=ca,dc=ipa,dc=example
@@ -53,7 +63,13 @@ aci: (targetattr = "cn || description || ipacertprofilestoreissued")(targetfilte
 dn: cn=certprofiles,cn=ca,dc=ipa,dc=example
 aci: (targetattr = "cn || createtimestamp || description || entryusn || ipacertprofilestoreissued || modifytimestamp || objectclass")(targetfilter = "(objectclass=ipacertprofile)")(version 3.0;acl "permission:System: Read Certificate Profiles";allow (compare,read,search) userdn = "ldap:///all";)
 dn: dc=ipa,dc=example
+aci: (targetfilter = "(objectclass=ipacerttransformationrule)")(version 3.0;acl "permission:System: Create Certificate Transformation Rules";allow (add) groupdn = "ldap:///cn=System: Create Certificate Transformation Rules,cn=permissions,cn=pbac,dc=ipa,dc=example";)
+dn: dc=ipa,dc=example
+aci: (targetfilter = "(objectclass=ipacerttransformationrule)")(version 3.0;acl "permission:System: Delete Certificate Transformation Rules";allow (delete) groupdn = "ldap:///cn=System: Delete Certificate Transformation Rules,cn=permissions,cn=pbac,dc=ipa,dc=example";)
+dn: dc=ipa,dc=example
 aci: (targetattr = "cn || createtimestamp || entryusn || ipacerttransformationhelper || ipacerttransformationtemplate || modifytimestamp || objectclass")(targetfilter = "(objectclass=ipacerttransformationrule)")(version 3.0;acl "permission:System: Read Certificate Transformation Rules";allow (compare,read,search) userdn = "ldap:///all";)
+dn: dc=ipa,dc=example
+aci: (targetattr = "cn || ipacerttransformationhelper || ipacerttransformationtemplate")(targetfilter = "(objectclass=ipacerttransformationrule)")(version 3.0;acl "permission:System: Update Certificate Transformation Rules";allow (write) groupdn = "ldap:///cn=System: Update Certificate Transformation Rules,cn=permissions,cn=pbac,dc=ipa,dc=example";)
 dn: cn=ipaconfig,cn=etc,dc=ipa,dc=example
 aci: (targetattr = "cn || createtimestamp || entryusn || ipacertificatesubjectbase || ipaconfigstring || ipacustomfields || ipadefaultemaildomain || ipadefaultloginshell || ipadefaultprimarygroup || ipagroupobjectclasses || ipagroupsearchfields || ipahomesrootdir || ipakrbauthzdata || ipamaxusernamelength || ipamigrationenabled || ipapwdexpadvnotify || ipasearchrecordslimit || ipasearchtimelimit || ipaselinuxusermapdefault || ipaselinuxusermaporder || ipauserauthtype || ipauserobjectclasses || ipausersearchfields || modifytimestamp || objectclass")(targetfilter = "(objectclass=ipaguiconfig)")(version 3.0;acl "permission:System: Read Global Configuration";allow (compare,read,search) userdn = "ldap:///all";)
 dn: cn=costemplates,cn=accounts,dc=ipa,dc=example
