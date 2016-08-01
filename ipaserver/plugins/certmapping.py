@@ -88,6 +88,14 @@ class certfieldmappingrule(LDAPObject):
                 'objectclass',
             },
         },
+        'System: Import Certificate Profile Mappings': {
+            'ipapermright': {'add'},
+            'default_privileges': {'CA Administrator'},
+        },
+        'System: Delete Certificate Profile Mappings': {
+            'ipapermright': {'delete'},
+            'default_privileges': {'CA Administrator'},
+        },
     }
 
 
@@ -164,6 +172,22 @@ class certmappingrule(LDAPObject):
                 'description',
                 'objectclass',
             },
+        },
+        'System: Create Certificate Mapping Rules': {
+            'ipapermright': {'add'},
+            'default_privileges': {'CA Administrator'},
+        },
+        'System: Update Certificate Mapping Rules': {
+            'ipapermright': {'write'},
+            'default_privileges': {'CA Administrator'},
+            'ipapermdefaultattr': {
+                'cn',
+                'description',
+            },
+        },
+        'System: Delete Certificate Mapping Rules': {
+            'ipapermright': {'delete'},
+            'default_privileges': {'CA Administrator'},
         },
     }
 
@@ -250,6 +274,23 @@ class certtransformationrule(LDAPObject):
                 'ipacerttransformationhelper',
                 'objectclass',
             },
+        },
+        'System: Create Certificate Transformation Rules': {
+            'ipapermright': {'add'},
+            'default_privileges': {'CA Administrator'},
+        },
+        'System: Update Certificate Transformation Rules': {
+            'ipapermright': {'write'},
+            'default_privileges': {'CA Administrator'},
+            'ipapermdefaultattr': {
+                'cn',
+                'ipacerttransformationtemplate',
+                'ipacerttransformationhelper',
+            },
+        },
+        'System: Delete Certificate Transformation Rules': {
+            'ipapermright': {'delete'},
+            'default_privileges': {'CA Administrator'},
         },
     }
 
