@@ -3,6 +3,7 @@
 #
 
 from ipaclient.frontend import CommandOverride, Str
+from ipalib import util
 from ipalib.plugable import Registry
 from ipalib.text import _
 
@@ -20,10 +21,19 @@ Command override to display the produced CSR generation data
 @register(override=True, no_fail=True)
 class cert_get_requestdata(CommandOverride):
     has_output_params = (
-        Str('commandline',
-            label=_('Command to run'),
-        ),
-        Str('configfile',
-            label=_('Configuration file contents'),
+        Str('script',
+            label=_('Generation script'),
         ),
     )
+
+    def forward(self, *keys, **options):
+        if 'out' in options:
+            util.check_writable_file(options['out'])
+
+        result = super(cert_get_requestdata, self).forward(*keys, **options)
+
+        if 'out' in options and 'script' in result['result']:
+            with open(options['out'], 'wb') as f:
+                f.write(result['result'].pop('script'))
+
+        return result

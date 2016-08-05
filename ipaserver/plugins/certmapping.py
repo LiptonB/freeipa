@@ -255,6 +255,9 @@ class cert_get_requestdata(Command):
             doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
                   ' create CSR'),
         ),
+        Str('out?',
+            doc=_('Write CSR generation script to file'),
+        ),
     )
 
     has_output = (
@@ -347,7 +350,8 @@ class Formatter(object):
         self.backend.debug(
             'Formatting with template: %s' % combined_template_source)
         combined_template = self.jinja2.from_string(combined_template_source)
-        return combined_template.render(**render_data)
+        script = combined_template.render(**render_data)
+        return dict(script=script)
 
     def _wrap_rule(self, rule, rule_type):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
@@ -383,7 +387,7 @@ class OpenSSLFormatter(Formatter):
         rendered = self._format(
             'openssl_base.tmpl',
             {'parameters': parameters, 'extensions': extensions}, render_data)
-        return dict(configfile=rendered)
+        return rendered
 
     def prepare_syntax_rule(self, syntax_rule, data_rules):
         """Overrides method to pull out whether rule is an extension or not."""
@@ -400,7 +404,7 @@ class CertutilFormatter(Formatter):
     def format(self, syntax_rules, render_data):
         rendered = self._format(
             'certutil_base.tmpl', {'options': syntax_rules}, render_data)
-        return dict(commandline=rendered)
+        return rendered
 
 
 @register()
