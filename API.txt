@@ -761,7 +761,7 @@ output: Output('summary', type=[<type 'unicode'>, <type 'NoneType'>])
 output: Output('truncated', type=[<type 'bool'>])
 command: cert_get_requestdata/1
 args: 0,5,1
-option: Str('format')
+option: Str('helper')
 option: Str('out?')
 option: Principal('principal')
 option: Str('profile_id')

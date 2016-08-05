@@ -250,7 +250,7 @@ class cert_get_requestdata(Command):
             label=_('Profile ID'),
             doc=_('Certificate Profile to use'),
         ),
-        Str('format',
+        Str('helper',
             label=_('Name of CSR generation tool'),
             doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
                   ' create CSR'),
@@ -271,7 +271,7 @@ class cert_get_requestdata(Command):
     def execute(self, **kw):
         principal = kw.get('principal')
         profile_id = kw.get('profile_id')
-        helper = kw.get('format')
+        helper = kw.get('helper')
 
         try:
             if principal.is_host:
