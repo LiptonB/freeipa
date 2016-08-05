@@ -362,7 +362,7 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
 
     takes_args = (
         Str(
-            'csr?', validate_csr,
+            'csr', validate_csr,
             label=_('CSR'),
             cli_name='csr_file',
             normalizer=normalize_csr,
@@ -394,13 +394,8 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
                 continue
             yield arg
 
-    def execute(self, all=False, raw=False, *args, **kw):
+    def execute(self, csr, all=False, raw=False, **kw):
         ca_enabled_check()
-
-        try:
-            csr = args[0]
-        except IndexError:
-            raise errors.RequirementError(name='csr')
 
         ldap = self.api.Backend.ldap2
         add = kw.get('add')
