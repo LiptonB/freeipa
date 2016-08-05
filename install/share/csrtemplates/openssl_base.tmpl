@@ -2,15 +2,15 @@
 {% import "openssl_macros.tmpl" as openssl -%}
 {% import "ipa_macros.tmpl" as ipa -%}
 {%- endraw %}
-#!/bin/bash
+#!/bin/bash -e
 
 if [[ $# -ne 1 ]]; then
 echo "Usage: $0 <keyfile>"
 exit 1
 fi
 
-CONFIG=$(mktemp)
-CSR=$(mktemp)
+CONFIG="$(mktemp)"
+CSR="$(mktemp)"
 echo \
 {% raw %}{% filter quote %}{% endraw -%}
 [ req ]
@@ -26,7 +26,7 @@ encrypt_key = no
 req_extensions = {% call openssl.section() %}{{ rendered_extensions }}{% endcall %}
 {% endif %}
 {{ openssl.openssl_sections|join('\n\n') }}
-{% endfilter %}{%- endraw %} > $CONFIG
+{% endfilter %}{%- endraw %} > "$CONFIG"
 
-openssl req -new -config $CONFIG -out $CSR -key $1
-echo ipa cert-request $CSR --profile-id '<profile>' --principal '<principal>'
+openssl req -new -config "$CONFIG" -out "$CSR" -key $1
+echo ipa cert-request "$CSR" --profile-id '<profile>' --principal '<principal>'

@@ -1,4 +1,8 @@
 {% raw -%}
 {% import "ipa_macros.tmpl" as ipa -%}
 {%- endraw %}
-certutil -R -a {{ options|join(' ') }}
+#!/bin/bash
+
+CSR="$(mktemp)"
+certutil -R -a -o "$CSR" {{ options|join(' ') }} "$@"
+echo ipa cert-request "$CSR" --profile-id '<profile>' --principal '<principal>'
