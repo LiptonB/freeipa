@@ -37,7 +37,7 @@ from ipalib import x509
 from ipalib import ngettext
 from ipalib.constants import IPA_CA_CN
 from ipalib.crud import Create, PKQuery, Retrieve, Search
-from ipalib.frontend import Method, Object
+from ipalib.frontend import Local, Method, Object
 from ipalib.parameters import Bytes, DateTime, DNParam, Principal
 from ipalib.plugable import Registry
 from .virtual import VirtualCommand
@@ -385,21 +385,6 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
                 "automatically add the principal if it doesn't exist "
                 "(service principals only)"),
         ),
-        Flag(
-            'autofill',
-            doc=_('automatically generate the CSR'),
-        ),
-        Str(
-            'helper?',
-            label=_('Name of CSR generation helper'),
-            doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
-                  ' create CSR if --autofill is used'),
-        ),
-        Str(
-            'helper_args?',
-            default=u'',
-            label=_('Extra args for CSR generation helper'),
-        ),
     )
 
     def get_args(self):
@@ -637,6 +622,25 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
             result=result,
             value=pkey_to_value(int(result['request_id']), kw),
         )
+
+@register()
+class cert_build(Local):
+    __doc__ = _(
+        'Automatically construct a certificate signing request and submit it.')
+
+    takes_options = cert_request.takes_options + (
+        Str(
+            'helper?',
+            label=_('Name of CSR generation helper'),
+            doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
+                  ' create CSR if --autofill is used'),
+        ),
+        Str(
+            'helper_args?',
+            default=u'',
+            label=_('Extra args for CSR generation helper'),
+        ),
+    )
 
 
 @register()

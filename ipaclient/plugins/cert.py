@@ -24,7 +24,7 @@ import shlex
 import subprocess
 import tempfile
 
-from ipaclient.frontend import MethodOverride
+from ipaclient.frontend import CommandOverride, MethodOverride
 from ipalib import errors
 from ipalib import x509
 from ipalib import util
@@ -43,33 +43,38 @@ class cert_request(MethodOverride):
                 arg = arg.clone_retype(arg.name, File)
             yield arg
 
+
+@register(override=True, no_fail=True)
+class cert_build(CommandOverride):
     def forward(self, *keys, **options):
-        if 'autofill' in options:
-            helper = options.get('helper')
-            if not helper:
-                raise errors.RequirementError(name='helper')
+        try:
+            helper = options.pop('helper')
+        except KeyError:
+            raise errors.RequirementError(name='helper')
 
-            scriptfile = tempfile.NamedTemporaryFile(delete=False)
-            scriptfile.close()
+        helper_args = options.pop('helper_args')
 
-            requestdata = self.api.Command.cert_get_requestdata(
-                profile_id=options.get('profile_id'),
-                principal=options.get('principal'),
-                out=scriptfile,
-                helper=helper)
+        scriptfile = tempfile.NamedTemporaryFile(delete=False)
+        scriptfile.close()
 
-            helper_args = shlex.split(options.get('helper_args'))
+        requestdata = self.api.Command.cert_get_requestdata(
+            profile_id=options.get('profile_id'),
+            principal=options.get('principal'),
+            out=scriptfile.name,
+            helper=helper)
 
-            try:
-                csrfile = subprocess.check_output(
-                    ['bash', scriptfile.name] + helper_args)
-            except subprocess.CalledProcessError:
-                raise errors.CertificateOperationError(
-                    error=_('Could not generate CSR'))
-            finally:
-                os.remove(scriptfile.name)
+        helper_args = shlex.split(helper_args)
 
-        rv = super(cert_request, self).forward(csrfile, **options)
+        try:
+            csrfile = subprocess.check_output(
+                ['bash', scriptfile.name] + helper_args)
+        except subprocess.CalledProcessError:
+            raise errors.CertificateOperationError(
+                error=_('Could not generate CSR'))
+        finally:
+            os.remove(scriptfile.name)
+
+        rv = self.api.Command.cert_request(csrfile, **options)
         os.remove(csrfile)
         return rv
 
