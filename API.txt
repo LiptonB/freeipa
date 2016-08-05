@@ -774,11 +774,14 @@ option: Str('cacn?', autofill=True, cli_name='ca', default=u'ipa')
 option: Str('version?')
 output: Output('result')
 command: cert_request/1
-args: 1,8,3
-arg: Str('csr', cli_name='csr_file')
+args: 1,11,3
+arg: Str('csr?', cli_name='csr_file')
 option: Flag('add', autofill=True, default=False)
 option: Flag('all', autofill=True, cli_name='all', default=False)
+option: Flag('autofill', autofill=True, default=False)
 option: Str('cacn?', autofill=True, cli_name='ca', default=u'ipa')
+option: Str('helper?')
+option: Str('helper_args?', default=u'')
 option: Principal('principal')
 option: Str('profile_id?')
 option: Flag('raw', autofill=True, cli_name='raw', default=False)

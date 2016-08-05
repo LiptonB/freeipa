@@ -397,7 +397,7 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
         ),
         Str(
             'helper_args?',
-            default='',
+            default=u'',
             label=_('Extra args for CSR generation helper'),
         ),
     )
