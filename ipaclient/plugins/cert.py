@@ -19,6 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import shlex
+import subprocess
+import tempfile
+
 from ipaclient.frontend import MethodOverride
 from ipalib import errors
 from ipalib import x509
@@ -37,6 +42,36 @@ class cert_request(MethodOverride):
             if arg.name == 'csr':
                 arg = arg.clone_retype(arg.name, File)
             yield arg
+
+    def forward(self, *keys, **options):
+        if 'autofill' in options:
+            helper = options.get('helper')
+            if not helper:
+                raise errors.RequirementError(name='helper')
+
+            scriptfile = tempfile.NamedTemporaryFile(delete=False)
+            scriptfile.close()
+
+            requestdata = self.api.Command.cert_get_requestdata(
+                profile_id=options.get('profile_id'),
+                principal=options.get('principal'),
+                out=scriptfile,
+                helper=helper)
+
+            helper_args = shlex.split(options.get('helper_args'))
+
+            try:
+                csrfile = subprocess.check_output(
+                    ['bash', scriptfile.name] + helper_args)
+            except subprocess.CalledProcessError:
+                raise errors.CertificateOperationError(
+                    error=_('Could not generate CSR'))
+            finally:
+                os.remove(scriptfile.name)
+
+        rv = super(cert_request, self).forward(csrfile, **options)
+        os.remove(csrfile)
+        return rv
 
 
 @register(override=True, no_fail=True)

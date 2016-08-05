@@ -362,7 +362,7 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
 
     takes_args = (
         Str(
-            'csr', validate_csr,
+            'csr?', validate_csr,
             label=_('CSR'),
             cli_name='csr_file',
             normalizer=normalize_csr,
@@ -385,6 +385,21 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
                 "automatically add the principal if it doesn't exist "
                 "(service principals only)"),
         ),
+        Flag(
+            'autofill',
+            doc=_('automatically generate the CSR'),
+        ),
+        Str(
+            'helper?',
+            label=_('Name of CSR generation helper'),
+            doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
+                  ' create CSR if --autofill is used'),
+        ),
+        Str(
+            'helper_args?',
+            default='',
+            label=_('Extra args for CSR generation helper'),
+        ),
     )
 
     def get_args(self):
@@ -394,8 +409,13 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
                 continue
             yield arg
 
-    def execute(self, csr, all=False, raw=False, **kw):
+    def execute(self, all=False, raw=False, *args, **kw):
         ca_enabled_check()
+
+        try:
+            csr = args[0]
+        except IndexError:
+            raise errors.RequirementError(name='csr')
 
         ldap = self.api.Backend.ldap2
         add = kw.get('add')
