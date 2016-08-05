@@ -19,13 +19,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from ipaclient.frontend import MethodOverride
+import os
+import shlex
+import subprocess
+import tempfile
+
+from ipaclient.frontend import CommandOverride, MethodOverride
 from ipalib import errors
 from ipalib import x509
 from ipalib import util
 from ipalib.parameters import File, Flag, Str
 from ipalib.plugable import Registry
 from ipalib.text import _
+
+import six
+
+if six.PY3:
+    unicode = str
 
 register = Registry()
 
@@ -37,6 +47,55 @@ class cert_request(MethodOverride):
             if arg.name == 'csr':
                 arg = arg.clone_retype(arg.name, File)
             yield arg
+
+
+@register(override=True, no_fail=True)
+class cert_build(CommandOverride):
+    def forward(self, *keys, **options):
+        try:
+            helper = options.pop('helper')
+        except KeyError:
+            raise errors.RequirementError(name='helper')
+
+        helper_args = options.pop('helper_args', u'')
+
+        scriptfile = tempfile.NamedTemporaryFile(delete=False)
+        scriptfile.close()
+        csrfile = tempfile.NamedTemporaryFile(delete=False)
+        csrfile.close()
+        csrfilename = csrfile.name
+
+        requestdata = self.api.Command.cert_get_requestdata(
+            profile_id=options.get('profile_id'),
+            principal=options.get('principal'),
+            out=unicode(scriptfile.name),
+            helper=helper)
+
+        helper_cmd = ['bash', '-e', scriptfile.name, csrfilename] + shlex.split(helper_args)
+
+        try:
+            subprocess.check_call(helper_cmd)
+        except subprocess.CalledProcessError:
+            raise errors.CertificateOperationError(
+                error=(
+                    _('Error running "%(cmd)s" to generate CSR') %
+                    {'cmd': ' '.join(helper_cmd)}))
+        finally:
+            os.remove(scriptfile.name)
+
+        try:
+            with open(csrfilename) as csrfile:
+                csr = csrfile.read()
+        except IOError:
+            raise errors.CertificateOperationError(
+                error=(_('Unable to read generated CSR file')))
+        if not csr:
+            raise errors.CertificateOperationError(
+                error=(_('Generated CSR was empty')))
+
+        rv = self.api.Command.cert_request(unicode(csr), **options)
+        os.remove(csrfilename)
+        return rv
 
 
 @register(override=True, no_fail=True)
