@@ -29,4 +29,5 @@ req_extensions = {% call openssl.section() %}{{ rendered_extensions }}{% endcall
 {% endfilter %}{%- endraw %} > "$CONFIG"
 
 openssl req -new -config "$CONFIG" -out "$CSR" -key $1
-echo ipa cert-request "$CSR" --profile-id '<profile>' --principal '<principal>'
+rm "$CONFIG"
+echo "$CSR"

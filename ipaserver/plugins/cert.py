@@ -37,7 +37,7 @@ from ipalib import x509
 from ipalib import ngettext
 from ipalib.constants import IPA_CA_CN
 from ipalib.crud import Create, PKQuery, Retrieve, Search
-from ipalib.frontend import Local, Method, Object
+from ipalib.frontend import Method, Object
 from ipalib.parameters import Bytes, DateTime, DNParam, Principal
 from ipalib.plugable import Registry
 from .virtual import VirtualCommand
@@ -619,24 +619,34 @@ class cert_request(Create, BaseCertMethod, VirtualCommand):
         )
 
 @register()
-class cert_build(Local):
+class cert_build(Create, BaseCertMethod):
     __doc__ = _(
         'Automatically construct a certificate signing request and submit it.')
+
+    obj_name = 'certreq'
+    attr_name = 'build'
 
     takes_options = cert_request.takes_options + (
         Str(
             'helper?',
             label=_('Name of CSR generation helper'),
             doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
-                  ' create CSR if --autofill is used'),
+                  ' create CSR'),
         ),
         Str(
             'helper_args?',
-            default=u'',
             label=_('Extra args for CSR generation helper'),
         ),
     )
 
+    operation="build certificate"
+
+    def get_args(self):
+        # FIXME: the 'no_create' flag is ignored for positional arguments
+        for arg in super(cert_build, self).get_args():
+            if arg.name == 'request_id':
+                continue
+            yield arg
 
 @register()
 class cert_status(Retrieve, BaseCertMethod, VirtualCommand):

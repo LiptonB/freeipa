@@ -5,4 +5,4 @@
 
 CSR="$(mktemp)"
 certutil -R -a -o "$CSR" {{ options|join(' ') }} "$@"
-echo ipa cert-request "$CSR" --profile-id '<profile>' --principal '<principal>'
+echo "$CSR"
