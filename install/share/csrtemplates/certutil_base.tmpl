@@ -1,8 +1,8 @@
 {% raw -%}
 {% import "ipa_macros.tmpl" as ipa -%}
 {%- endraw %}
-#!/bin/bash
+#!/bin/bash -e
 
 CSR="$(mktemp)"
-certutil -R -a -o "$CSR" {{ options|join(' ') }} "$@"
+certutil -R -a -z <(head -c 4096 /dev/urandom) -o "$CSR" {{ options|join(' ') }} "$@" >&2
 echo "$CSR"
