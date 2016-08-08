@@ -61,6 +61,9 @@ class cert_build(CommandOverride):
 
         scriptfile = tempfile.NamedTemporaryFile(delete=False)
         scriptfile.close()
+        csrfile = tempfile.NamedTemporaryFile(delete=False)
+        csrfile.close()
+        csrfilename = csrfile.name
 
         requestdata = self.api.Command.cert_get_requestdata(
             profile_id=options.get('profile_id'),
@@ -68,20 +71,18 @@ class cert_build(CommandOverride):
             out=unicode(scriptfile.name),
             helper=helper)
 
-        helper_cmd = ['bash', '-e', scriptfile.name] + shlex.split(helper_args)
+        helper_cmd = ['bash', '-e', scriptfile.name, csrfilename] + shlex.split(helper_args)
 
-        helper_proc = subprocess.Popen(
-            helper_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = helper_proc.communicate()
-        os.remove(scriptfile.name)
-
-        if helper_proc.returncode != 0:
+        try:
+            subprocess.check_call(helper_cmd)
+        except subprocess.CalledProcessError:
             raise errors.CertificateOperationError(
                 error=(
                     _('Error running "%(cmd)s" to generate CSR: %(msg)s') %
                     {'cmd': ' '.join(helper_cmd), 'msg': stdout + stderr}))
+        finally:
+            os.remove(scriptfile.name)
 
-        csrfilename = stdout.strip()
         try:
             with open(csrfilename) as csrfile:
                 csr = csrfile.read()
