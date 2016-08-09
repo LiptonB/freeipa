@@ -6,6 +6,7 @@ import pipes
 
 from jinja2.ext import Extension
 
+from ipalib import errors
 
 class IPAExtension(Extension):
     """Jinja2 extension providing useful features for cert mapping rules."""
@@ -16,6 +17,7 @@ class IPAExtension(Extension):
         environment.filters.update(
             quote=self.quote,
             safe_attr=self.safe_attr,
+            missing=missing,
         )
 
     def quote(self, data):
@@ -42,3 +44,7 @@ class IPAExtension(Extension):
                     return self.environment.unsafe_undefined(obj, name)
                 return value
         return self.environment.undefined(obj=obj, name=name)
+
+    def missing(self, data):
+        raise errors.CertificateMappingError(reason=_(
+            'Required mapping rule is missing data'))

@@ -75,10 +75,10 @@ INCLUDED_MAPPING_RULESETS = (
         [
             TransformationRule(
                 u'syntaxSubjectOpenssl',
-                u'distinguished_name = {% call openssl.section() %}{{ datarules|first }}{% endcall %}',
+                u'{% set required = true %}distinguished_name = {% call openssl.section() %}{{ datarules|first }}{% endcall %}',
                 [u'openssl']),
             TransformationRule(
-                u'syntaxSubjectCertutil', u'-s {{ datarules|first }}',
+                u'syntaxSubjectCertutil', u'{% set required = true %}-s {{ datarules|first }}',
                 [u'certutil']),
         ]),
     MappingRuleset(

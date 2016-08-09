@@ -501,9 +501,14 @@ class Formatter(object):
 
         return combined_template
 
-    def _wrap_rule(self, rule, rule_type):
-        template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
-            rule_type, rule)
+    def _wrap_rule(self, rule, rule_type, is_required):
+        required_str = ''
+        if rule_type == 'syntax':
+            required_str = str(is_required).lower()
+
+        template = '{%% call ipa.%srule(%s) %%}%s{%% endcall %%}' % (
+            rule_type, required_str, rule)
+
         return template
 
     def prepare_data_rule(self, data_rule):
@@ -556,11 +561,12 @@ class OpenSSLFormatter(Formatter):
             syntax_rule, globals=self.passthrough_globals)
         try:
             is_extension = getattr(template.module, 'extension', False)
+            is_required = getattr(template.module, 'required', False)
             rendered = template.render(datarules=data_rules)
         except jinja2.UndefinedError:
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prepared_template = self._wrap_rule(rendered, 'syntax')
+        prepared_template = self._wrap_rule(rendered, 'syntax', is_required)
         return self.SyntaxRule(prepared_template, is_extension)
 
 
