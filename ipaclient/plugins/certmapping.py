@@ -31,9 +31,9 @@ class cert_get_requestdata(CommandOverride):
             util.check_writable_file(options['out'])
 
         profile_id = options.get('profile_id')
-        format = options.get('format')
+        helper = options.get('helper')
         prompts = self.api.Command.cert_get_userprompts(
-            profile_id=profile_id, format=format)['result']
+            profile_id=profile_id, helper=helper)['result']
 
         userdata = {}
         for name, prompt in prompts.iteritems():

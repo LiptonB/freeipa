@@ -402,7 +402,7 @@ class cert_get_userprompts(Command):
             doc=_('Certificate Profile to use. If not specified, uses the CA'
                   ' default.'),
         ),
-        Str('format',
+        Str('helper',
             label=_('Name of CSR generation tool'),
             doc=_('Name of tool (e.g. openssl, certutil) that will be used to'
                   ' create CSR'),
@@ -419,7 +419,7 @@ class cert_get_userprompts(Command):
 
     def execute(self, **kw):
         profile_id = kw.get('profile_id', self.Backend.ra.DEFAULT_PROFILE)
-        helper = kw.get('format')
+        helper = kw.get('helper')
 
         prompts = self.Backend.certmapping.get_user_prompts(
             profile_id, helper)
