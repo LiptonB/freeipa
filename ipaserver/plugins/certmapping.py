@@ -461,19 +461,6 @@ class Formatter(object):
             current_level = current_level[part]
         current_level[parts[-1]] = passthrough
 
-    def build_response(self, template, render_data):
-        """
-        Use the template to construct a response dictionary.
-
-        :param template: jinja2.Template used for formatting the response data.
-        :param render_data: dict of data from LDAP for the final render.
-
-        :returns: dict. Keys represent the type of data (e.g. commandline,
-            configfile), values contain the CSR generation data that should be
-            returned.
-        """
-        raise NotImplementedError('Formatter class can not be used directly')
-
     def build_template(self, syntax_rules):
         """
         Construct a template that can produce CSR generator strings.
@@ -546,14 +533,6 @@ class OpenSSLFormatter(Formatter):
             {'parameters': parameters, 'extensions': extensions})
         return template
 
-    def build_response(self, rendered):
-        if not 'distinguished_name =' in rendered:
-            raise errors.CertificateMappingError(reason=_(
-                'Certificate subject could not be generated. You may need to'
-                ' use a different certificate profile for this principal.'))
-
-        return dict(script=rendered)
-
     def prepare_syntax_rule(self, syntax_rule, data_rules):
         """Overrides method to pull out whether rule is an extension or not."""
         self.backend.debug('Syntax rule template: %s' % syntax_rule)
@@ -574,14 +553,6 @@ class CertutilFormatter(Formatter):
     def build_template(self, syntax_rules):
         return self._build_template(
             'certutil_base.tmpl', {'options': syntax_rules})
-
-    def build_response(self, rendered):
-        if not ' -s ' in rendered:
-            raise errors.CertificateMappingError(reason=_(
-                'Certificate subject could not be generated. You may need to'
-                ' use a different certificate profile for this principal.'))
-
-        return dict(script=rendered)
 
 
 @register()
@@ -634,10 +605,8 @@ class certmapping(Backend):
                 name=(_('User-specified items %(items)s')
                       % {'items': prompts.keys()}))
 
-        # TODO(blipton): Can we stop creating formatter twice?
-        formatter = self.FORMATTERS[helper](self)
-        response = formatter.build_response(unicode(module))
-        return response
+        script = unicode(module)
+        return dict(script=script)
 
     def get_user_prompts(self, profile_id, helper):
         template = self.__compose_template(profile_id, helper)
