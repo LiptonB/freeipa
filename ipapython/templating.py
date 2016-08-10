@@ -17,7 +17,7 @@ class IPAExtension(Extension):
         environment.filters.update(
             quote=self.quote,
             safe_attr=self.safe_attr,
-            missing=missing,
+            missing=self.missing,
         )
 
     def quote(self, data):
