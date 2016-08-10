@@ -1842,7 +1842,7 @@ def import_included_profiles():
     api.Backend.ra_certprofile._read_password()
     api.Backend.ra_certprofile.override_port = 8443
 
-    for (ruleset_id, description,
+    for (ruleset_id, description, data_item, data_prompt,
             transformations) in dogtag.INCLUDED_MAPPING_RULESETS:
         ruleset_dn = DN(('cn', ruleset_id),
                         api.env.container_certmappingruleset, api.env.basedn)
@@ -1852,6 +1852,10 @@ def import_included_profiles():
             cn=[ruleset_id],
             description=[description],
         )
+        if data_item:
+            entry['ipacertdataitem'] = [data_item],
+        if data_prompt:
+            entry['ipacertdataprompt'] = [data_prompt],
 
         if __create_entry_if_new(conn, entry):
             for (rule_id, template, helpers) in transformations:

@@ -45,7 +45,7 @@ Profile = collections.namedtuple('Profile', [
 FieldMapping = collections.namedtuple('FieldMapping', [
     'syntax_mapping', 'data_mappings'])
 MappingRuleset = collections.namedtuple('MappingRuleset', [
-    'id', 'description', 'transformations'])
+    'id', 'description', 'data_item', 'data_prompt', 'transformations'])
 TransformationRule = collections.namedtuple('TransformationRule', [
     'id', 'template', 'helpers'])
 
@@ -72,6 +72,7 @@ INCLUDED_PROFILES = (
 INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'syntaxSubject', u'Syntax for adding a Subject Distinguished Name',
+        None, None,
         [
             TransformationRule(
                 u'syntaxSubjectOpenssl',
@@ -83,6 +84,8 @@ INCLUDED_MAPPING_RULESETS = (
         ]),
     MappingRuleset(
         u'dataHostCN', u'DN with the principal\'s hostname as the CommonName',
+        u'subject.krbprincipalname.0', None,
+        # TODO(blipton): do we need to include "hostname" somehow as well?
         [
             TransformationRule(
                 u'dataHostOpenssl',
@@ -96,6 +99,7 @@ INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'dataUsernameCN',
         u'DN with the principal\'s username as the CommonName',
+        u'subject.uid.0', None,
         [
             TransformationRule(
                 u'dataUsernameOpenssl',
@@ -108,6 +112,7 @@ INCLUDED_MAPPING_RULESETS = (
         ]),
     MappingRuleset(
         u'syntaxSAN', u'Syntax for adding a Subject Alternate Name',
+        None, None,
         [
             TransformationRule(
                 u'syntaxSANOpenssl',
@@ -120,6 +125,7 @@ INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'dataDNS',
         u'Constructs a SubjectAltName entry from the principal\'s hostname',
+        u'subject.krbprincipalname.0', None,
         [
             TransformationRule(
                 u'dataDNSOpenssl', u'DNS = {{ipa.datafield(subject.krbprincipalname.0|safe_attr("hostname"))}}',
@@ -131,6 +137,7 @@ INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'dataEmail',
         u'Constructs a SubjectAltName entry from the principal\'s email',
+        u'subject.mail.0', None,
         [
             TransformationRule(
                 u'dataEmailOpenssl', u'email = {{ipa.datafield(subject.mail.0)}}',
@@ -142,12 +149,13 @@ INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'dataUserSpecDN',
         u'Constructs a SubjectAltName entry from a DN provided by the user',
+        u'DN', u'Directory Name',
         [
             TransformationRule(
-                u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(ipa.userprompt("Directory name", "DN").split(",")|reverse|join("\n"))}}{% endcall %}',
+                u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(DN.split(",")|reverse|join("\n"))}}{% endcall %}',
                 [u'openssl']),
             TransformationRule(
-                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(ipa.userprompt("Directory name", "DN")|replace(",", ";")|quote}}',
+                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(DN|replace(",", ";")|quote}}',
                 [u'certutil']),
         ]),
 )

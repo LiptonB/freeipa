@@ -154,11 +154,24 @@ class certmappingrule(LDAPObject):
             doc=_('ID for referring to this mapping rule'),
         ),
         Str('description',
-            required=True,
             cli_name='description',
             label=_('Description of this mapping rule'),
             doc=_('Description of this mapping rule'),
         ),
+        Str('ipacertdataitem?',
+            cli_name='var',
+            label=_('Variable name referenced by this rule'),
+            doc=_(
+                'Variable name referenced by this rule. Required for data'
+                ' rules. May be an expression if referring to something in the'
+                ' database, but must be a single variable name if data will be'
+                ' supplied by the user (--user-prompt is set).'),
+        ),
+        Str('ipacertdataprompt?',
+            cli_name='user_prompt',
+            label=_('Prompt to request this item from user'),
+            doc=_('Prompt to request this item from user'),
+        )
     )
 
     permission_filter_objectclasses = ['ipacertmappingruleset']
