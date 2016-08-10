@@ -489,8 +489,8 @@ class Formatter(object):
         return combined_template
 
     def _wrap_rule(self, rule, rule_type, is_required=False):
-        template = '{%% call ipa.%srule(%s) %%}%s{%% endcall %%}' % (
-            rule_type, required_str, rule)
+        template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
+            rule_type, rule)
 
         if is_required:
             template = '{%% filter required %%}%s{%% endfilter %%}' % template
