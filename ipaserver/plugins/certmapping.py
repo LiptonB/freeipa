@@ -138,10 +138,10 @@ class certmappingrule(LDAPObject):
     object_name_plural = _('Certificate Mapping Rules')
     object_class = ['ipacertmappingruleset']
     default_attributes = [
-        'cn', 'description'
+        'cn', 'description', 'ipacertdataitem', 'ipacertdataprompt'
     ]
     search_attributes = [
-        'cn', 'description'
+        'cn', 'description', 'ipacertdataitem', 'ipacertdataprompt'
     ]
     label = _('Certificate Mapping Rules')
     label_singular = _('Certificate Mapping Rule')

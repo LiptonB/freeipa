@@ -1851,11 +1851,9 @@ def import_included_profiles():
             objectclass=['ipacertmappingruleset'],
             cn=[ruleset_id],
             description=[description],
+            ipacertdataitem=([data_item] if data_item else []),
+            ipacertdataprompt=([data_prompt] if data_prompt else []),
         )
-        if data_item:
-            entry['ipacertdataitem'] = [data_item],
-        if data_prompt:
-            entry['ipacertdataprompt'] = [data_prompt],
 
         if __create_entry_if_new(conn, entry):
             for (rule_id, template, helpers) in transformations:
