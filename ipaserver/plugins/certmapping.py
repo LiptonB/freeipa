@@ -431,7 +431,7 @@ class cert_get_userprompts(Command):
 
 class IndexableUndefined(jinja2.Undefined):
     def __getitem__(self, key):
-        return jinja2.Undefined(
+        return IndexableUndefined(
             hint=self._undefined_hint, obj=self._undefined_obj,
             name=self._undefined_name, exc=self._undefined_exception)
 
@@ -501,7 +501,7 @@ class Formatter(object):
 
         return combined_template
 
-    def _wrap_rule(self, rule, rule_type, is_required):
+    def _wrap_rule(self, rule, rule_type, is_required=False):
         required_str = ''
         if rule_type == 'syntax':
             required_str = str(is_required).lower()
@@ -519,11 +519,12 @@ class Formatter(object):
         template = self.jinja2.from_string(
             syntax_rule, globals=self.passthrough_globals)
         try:
+            is_required = getattr(template.module, 'required', False)
             rendered = template.render(datarules=data_rules)
         except jinja2.UndefinedError:
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prepared_template = self._wrap_rule(rendered, 'syntax')
+        prepared_template = self._wrap_rule(rendered, 'syntax', is_required)
         return prepared_template
 
 
