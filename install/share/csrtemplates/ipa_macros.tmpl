@@ -6,17 +6,14 @@
 variable, so that if we find that none of the contained data rules rendered we
 can suppress the whole syntax rule. That is, a syntax rule is rendered either
 if no data rules are specified (unusual) or if at least one of the data rules
-rendered successfully. If is_required is true and the rule is not going to be
-rendered, an exception is raised. #}
-{% macro syntaxrule(is_required) -%}
+rendered successfully. #}
+{% macro syntaxrule() -%}
 {% do rendersyntax.update(none=true, any=false) -%}
 {% set contents -%}
 {{ caller() -}}
 {% endset -%}
 {% if rendersyntax['none'] or rendersyntax['any'] -%}
 {{ contents -}}
-{% elif is_required -%}
-{{ '' | missing -}}
 {% endif -%}
 {% endmacro %}
 
