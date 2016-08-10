@@ -785,7 +785,7 @@ option: Str('version?')
 output: Output('result', type=[<type 'dict'>])
 command: cert_get_userprompts/1
 args: 0,3,1
-option: Str('format')
+option: Str('helper')
 option: Str('profile_id?')
 option: Str('version?')
 output: Output('result', type=[<type 'dict'>])
