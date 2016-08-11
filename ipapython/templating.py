@@ -46,7 +46,9 @@ class IPAExtension(Extension):
                 return value
         return self.environment.undefined(obj=obj, name=name)
 
-    def required(self, data):
+    def required(self, data, name):
         if not data:
-            raise errors.CertificateMappingError(reason=_(
-                'Required mapping rule is missing data'))
+            raise errors.CertificateMappingError(
+                reason=_('Required mapping rule %(name)s is missing data') %
+                {'name': name})
+        return data

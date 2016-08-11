@@ -501,19 +501,20 @@ class Formatter(object):
 
         return combined_template
 
-    def _wrap_rule(self, rule, rule_type, is_required=False):
+    def _wrap_rule(self, rule, rule_type, is_required=False, name=None):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
             rule_type, rule)
 
         if is_required:
-            template = '{%% filter required %%}%s{%% endfilter %%}' % template
+            template = '{%% filter required("%s") %%}%s{%% endfilter %%}' % (
+                name, template)
 
         return template
 
     def prepare_data_rule(self, data_rule):
         return self._wrap_rule(data_rule, 'data')
 
-    def prepare_syntax_rule(self, syntax_rule, data_rules):
+    def prepare_syntax_rule(self, syntax_rule, data_rules, name):
         self.backend.debug('Syntax rule template: %s' % syntax_rule)
         template = self.jinja2.from_string(
             syntax_rule, globals=self.passthrough_globals)
@@ -523,7 +524,7 @@ class Formatter(object):
         except jinja2.UndefinedError:
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prepared_template = self._wrap_rule(rendered, 'syntax', is_required)
+        prepared_template = self._wrap_rule(rendered, 'syntax', is_required, name)
         return prepared_template
 
 
@@ -546,7 +547,7 @@ class OpenSSLFormatter(Formatter):
             {'parameters': parameters, 'extensions': extensions})
         return template
 
-    def prepare_syntax_rule(self, syntax_rule, data_rules):
+    def prepare_syntax_rule(self, syntax_rule, data_rules, name):
         """Overrides method to pull out whether rule is an extension or not."""
         self.backend.debug('Syntax rule template: %s' % syntax_rule)
         template = self.jinja2.from_string(
@@ -558,7 +559,7 @@ class OpenSSLFormatter(Formatter):
         except jinja2.UndefinedError:
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prepared_template = self._wrap_rule(rendered, 'syntax', is_required)
+        prepared_template = self._wrap_rule(rendered, 'syntax', is_required, name)
         return self.SyntaxRule(prepared_template, is_extension)
 
 
@@ -582,20 +583,20 @@ class certmapping(Backend):
         field_mappings = api.Command.certfieldmappingrule_find(
             profile_id)['result']
         for mapping in field_mappings:
-            syntax_ruleset_name = mapping['ipacertsyntaxmapping'][0]
+            syntax_ruleset_name = mapping['ipacertsyntaxmapping'][0]['cn']
             syntax_ruleset = api.Command.certmappingrule_show(
-                syntax_ruleset_name['cn'])['result']
-            data_ruleset_names = mapping['ipacertdatamapping']
+                syntax_ruleset_name)['result']
+            data_ruleset_dns = mapping['ipacertdatamapping']
             data_rulesets = [
                 api.Command.certmappingrule_show(name['cn'])['result']
-                for name in data_ruleset_names]
+                for name in data_ruleset_dns]
 
             syntax_rule = self.get_rule_for_helper(syntax_ruleset, helper)
             data_rules = [formatter.prepare_data_rule(
                 self.get_rule_for_helper(ruleset, helper))
                 for ruleset in data_rulesets]
             syntax_rules.append(formatter.prepare_syntax_rule(
-                syntax_rule, data_rules))
+                syntax_rule, data_rules, syntax_ruleset_name))
 
         template = formatter.build_template(syntax_rules)
         return template
@@ -622,17 +623,28 @@ class certmapping(Backend):
         return dict(script=script)
 
     def get_user_prompts(self, profile_id, helper):
-        template = self.__compose_template(profile_id, helper)
-        try:
-            module = template.make_module(
-                {'subject': {}, 'config': {}, 'userprompts': {}})
-        except jinja2.UndefinedError:
-            raise errors.CertificateMappingError(reason=_(
-                'Template error when collecting user prompts'))
-        prompts = getattr(module, 'emptyprompts', {})
-        unicode_prompts = dict(
-            (unicode(k), unicode(v)) for k, v in prompts.iteritems())
-        return unicode_prompts
+        prompts = {}
+        syntax_rules = []
+        field_mappings = api.Command.certfieldmappingrule_find(
+            profile_id)['result']
+        for mapping in field_mappings:
+            data_ruleset_names = mapping['ipacertdatamapping']
+            for name in data_ruleset_names:
+                ruleset = api.Command.certmappingrule_show(name['cn'])['result']
+                if 'ipacertdataprompt' in ruleset:
+                    try:
+                        var = ruleset['ipacertdataitem'][0]
+                    except KeyError:
+                        # TODO(blipton): raise something
+                        pass
+
+                    if var in prompts:
+                        # TODO(blipton): raise something (duplicate var)
+                        pass
+
+                    prompts[var] = ruleset['ipacertdataprompt'][0]
+
+        return prompts
 
     def get_rule_for_helper(self, ruleset, helper):
         rules = api.Command.certtransformationrule_find(

@@ -152,10 +152,10 @@ INCLUDED_MAPPING_RULESETS = (
         u'DN', u'Directory Name',
         [
             TransformationRule(
-                u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(DN.split(",")|reverse|join("\n"))}}{% endcall %}',
+                u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(userdata.DN.split(",")|reverse|join("\n"))}}{% endcall %}',
                 [u'openssl']),
             TransformationRule(
-                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(DN|replace(",", ";")|quote}}',
+                u'dataUserSpecDNCertutil', u'dn:{{ipa.datafield(userdata.DN|replace(",", ";"))|quote}}',
                 [u'certutil']),
         ]),
 )
