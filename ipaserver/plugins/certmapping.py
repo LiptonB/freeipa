@@ -660,7 +660,7 @@ class certmapping(Backend):
                 return template
         raise errors.NotFound(
             reason=_('No transformation in "%(ruleset)s" rule supports'
-                     ' format "%(helper)s"') %
+                     ' helper "%(helper)s"') %
             {'ruleset': ruleset['cn'][0], 'helper': helper})
 
     def get_profile_mappings(self, profile_id):
