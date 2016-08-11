@@ -503,13 +503,15 @@ class Formatter(object):
 
         return combined_template
 
-    def _wrap_rule(self, rule, rule_type, is_required=False, name=None):
+    def _wrap_rule(self, rule, rule_type):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
             rule_type, rule)
 
-        if is_required:
-            template = '{%% filter required("%s") %%}%s{%% endfilter %%}' % (
-                name, template)
+        return template
+
+    def _wrap_required(self, rule, name):
+        template = '{%% filter required("%s") %%}%s{%% endfilter %%}' % (
+            name, rule)
 
         return template
 
@@ -527,7 +529,11 @@ class Formatter(object):
             self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prepared_template = self._wrap_rule(rendered, 'syntax', is_required, name)
+
+        prepared_template = self._wrap_rule(rendered, 'syntax')
+        if is_required:
+            prepared_template = self._wrap_required(prepared_template, name)
+
         return prepared_template
 
 
@@ -552,18 +558,18 @@ class OpenSSLFormatter(Formatter):
 
     def prepare_syntax_rule(self, syntax_rule, data_rules, name):
         """Overrides method to pull out whether rule is an extension or not."""
-        self.backend.debug('Syntax rule template: %s' % syntax_rule)
+        prepared_template = super(OpenSSLFormatter, self).prepare_syntax_rule(
+            syntax_rule, data_rules, name)
+
         template = self.jinja2.from_string(
             syntax_rule, globals=self.passthrough_globals)
         try:
             is_extension = getattr(template.module, 'extension', False)
-            is_required = getattr(template.module, 'required', False)
-            rendered = template.render(datarules=data_rules)
         except jinja2.UndefinedError:
             self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prepared_template = self._wrap_rule(rendered, 'syntax', is_required, name)
+
         return self.SyntaxRule(prepared_template, is_extension)
 
 
