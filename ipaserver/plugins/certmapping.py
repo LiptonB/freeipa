@@ -451,6 +451,17 @@ class IndexableUndefined(jinja2.Undefined):
 
 
 class Formatter(object):
+    """
+    Class for processing a set of mapping rules into a template.
+
+    The template can be rendered with user and database data to produce a
+    script, which generates a CSR when run.
+
+    Subclasses of Formatter should set the value of base_template_name to the
+    filename of a base template with spaces for the processed rules.
+    Additionally, they should override the _get_template_params method to
+    produce the correct output for the base template.
+    """
     base_template_name = None
 
     def __init__(self, backend):
@@ -543,6 +554,14 @@ class Formatter(object):
         return prepared_template
 
     def _get_template_params(self, syntax_rules):
+        """
+        Package the syntax rules into fields expected by the base template.
+
+        :param syntax_rules: list of prepared syntax rules to be included in
+            the template.
+
+        :returns: dict of values needed to render the base template.
+        """
         raise NotImplementedError('Formatter class must be subclassed')
 
 
@@ -636,7 +655,7 @@ class certmapping(Backend):
         template = formatter.build_template(rules)
 
         try:
-            script = template.render(**render_data)
+            script = template.render(render_data)
         except jinja2.UndefinedError:
             self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
