@@ -520,25 +520,26 @@ class Formatter(object):
 
         return combined_template
 
-    def _wrap_rule(self, rule, rule_type):
-        template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
-            rule_type, rule)
+    def _wrap_rule(self, rule, data_items):
+        condition = ' or '.join(data_items)
+        template = '{%% if %s %%}%s{%% endif %%}' % (
+            condition, rule)
 
         return template
 
-    def _wrap_required(self, rule, name):
+    def _wrap_required(self, rule, description):
         template = '{%% filter required("%s") %%}%s{%% endfilter %%}' % (
-            name, rule)
+            description, rule)
 
         return template
 
     def _prepare_data_rule(self, data_rule):
-        return self._wrap_rule(data_rule, 'data')
+        return self._wrap_rule(data_rule.template, data_rule.data_items)
 
-    def _prepare_syntax_rule(self, syntax_rule, data_rules, name):
-        self.backend.debug('Syntax rule template: %s' % syntax_rule)
+    def _prepare_syntax_rule(self, syntax_rule, data_rules, description):
+        self.backend.debug('Syntax rule template: %s' % syntax_rule.template)
         template = self.jinja2.from_string(
-            syntax_rule, globals=self.passthrough_globals)
+            syntax_rule.template, globals=self.passthrough_globals)
         try:
             is_required = getattr(template.module, 'required', False)
             rendered = template.render(datarules=data_rules)
@@ -547,9 +548,9 @@ class Formatter(object):
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
 
-        prepared_template = self._wrap_rule(rendered, 'syntax')
+        prepared_template = self._wrap_rule(rendered, syntax_rule.data_items)
         if is_required:
-            prepared_template = self._wrap_required(prepared_template, name)
+            prepared_template = self._wrap_required(prepared_template, description)
 
         return prepared_template
 
@@ -593,7 +594,7 @@ class OpenSSLFormatter(Formatter):
             syntax_rule, data_rules, name)
 
         template = self.jinja2.from_string(
-            syntax_rule, globals=self.passthrough_globals)
+            syntax_rule.template, globals=self.passthrough_globals)
         try:
             is_extension = getattr(template.module, 'extension', False)
         except jinja2.UndefinedError:
@@ -614,6 +615,7 @@ class CertutilFormatter(Formatter):
 FieldMapping = collections.namedtuple(
     'FieldMapping', [
         'description', 'syntax_rule', 'data_rules'])
+Rule = collections.namedtuple('Rule', ['template', 'data_items'])
 
 
 @register()
@@ -637,9 +639,24 @@ class certmapping(Backend):
                 api.Command.certmappingrule_show(name['cn'])['result']
                 for name in data_ruleset_dns]
 
-            syntax_rule = self.get_rule_for_helper(syntax_ruleset, helper)
-            data_rules = [self.get_rule_for_helper(ruleset, helper)
-                          for ruleset in data_rulesets]
+            data_rules = []
+            all_data_items = []
+            for ruleset in data_rulesets:
+                template = self.get_rule_for_helper(ruleset, helper)
+                try:
+                    data_item = ruleset['ipacertdataitem'][0]
+                except KeyError:
+                    raise errors.CertificateMappingError(
+                        reason=_(
+                            'Data rule %(rule)s is missing a variable name.') %
+                        {'rule': ruleset['cn']})
+                rule = Rule(template, [data_item])
+                data_rules.append(rule)
+                all_data_items.append(data_item)
+
+            syntax_template = self.get_rule_for_helper(syntax_ruleset, helper)
+            syntax_rule = Rule(syntax_template, all_data_items)
+
             field_mapping_templates.append(FieldMapping(
                 syntax_ruleset_name, syntax_rule, data_rules))
 
