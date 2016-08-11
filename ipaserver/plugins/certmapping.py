@@ -532,7 +532,7 @@ class Formatter(object):
             is_required = getattr(template.module, 'required', False)
             rendered = template.render(datarules=data_rules)
         except jinja2.UndefinedError:
-            self.debug(traceback.format_exc())
+            self.backend.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
 
@@ -578,7 +578,7 @@ class OpenSSLFormatter(Formatter):
         try:
             is_extension = getattr(template.module, 'extension', False)
         except jinja2.UndefinedError:
-            self.debug(traceback.format_exc())
+            self.backend.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
 
