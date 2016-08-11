@@ -451,6 +451,8 @@ class IndexableUndefined(jinja2.Undefined):
 
 
 class Formatter(object):
+    base_template_name = None
+
     def __init__(self, backend):
         self.backend = backend
         self.jinja2 = jinja2.sandbox.SandboxedEnvironment(
@@ -475,25 +477,29 @@ class Formatter(object):
             current_level = current_level[part]
         current_level[parts[-1]] = passthrough
 
-    def build_template(self, syntax_rules):
+    def build_template(self, rules):
         """
         Construct a template that can produce CSR generator strings.
 
-        :param syntax_rules: list of prepared syntax rules to insert into the
-            template.
+        :param rules: list of MappingRuleset to use to populate the template.
 
         :returns: jinja2.Template that can be rendered to produce the CSR data.
         """
-        raise NotImplementedError('Formatter class can not be used directly')
+        syntax_rules = []
+        for description, syntax_rule, data_rules in rules:
+            data_rules_prepared = [
+                self.prepare_data_rule(rule) for rule in data_rules]
+            syntax_rules.append(self.prepare_syntax_rule(
+                syntax_rule, data_rules_prepared, description))
 
-    def _build_template(self, base_template_name, base_template_params):
+        template_params = self.get_template_params(syntax_rules)
         base_template = self.jinja2.get_template(
-            base_template_name, globals=self.passthrough_globals)
+            self.base_template_name, globals=self.passthrough_globals)
 
         try:
-            combined_template_source = base_template.render(**base_template_params)
+            combined_template_source = base_template.render(**template_params)
         except jinja2.UndefinedError:
-            self.debug(traceback.format_exc())
+            self.backend.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
 
@@ -502,6 +508,9 @@ class Formatter(object):
         combined_template = self.jinja2.from_string(combined_template_source)
 
         return combined_template
+
+    def get_template_params(self, syntax_rules):
+        raise NotImplementedError('Formatter class must be subclassed')
 
     def _wrap_rule(self, rule, rule_type):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
@@ -538,6 +547,7 @@ class Formatter(object):
 
 
 class OpenSSLFormatter(Formatter):
+    base_template_name = 'openssl_base.tmpl'
     SyntaxRule = collections.namedtuple(
         'SyntaxRule', ['template', 'is_extension'])
 
@@ -545,16 +555,13 @@ class OpenSSLFormatter(Formatter):
         super(OpenSSLFormatter, self).__init__(backend)
         self._define_passthrough('openssl.section')
 
-    def build_template(self, syntax_rules):
+    def get_template_params(self, syntax_rules):
         parameters = [rule.template for rule in syntax_rules
                       if not rule.is_extension]
         extensions = [rule.template for rule in syntax_rules
                       if rule.is_extension]
 
-        template = self._build_template(
-            'openssl_base.tmpl',
-            {'parameters': parameters, 'extensions': extensions})
-        return template
+        return {'parameters': parameters, 'extensions': extensions}
 
     def prepare_syntax_rule(self, syntax_rule, data_rules, name):
         """Overrides method to pull out whether rule is an extension or not."""
@@ -574,9 +581,15 @@ class OpenSSLFormatter(Formatter):
 
 
 class CertutilFormatter(Formatter):
-    def build_template(self, syntax_rules):
-        return self._build_template(
-            'certutil_base.tmpl', {'options': syntax_rules})
+    base_template_name = 'certutil_base.tmpl'
+
+    def get_template_params(self, syntax_rules):
+        return {'options': syntax_rules}
+
+
+FieldMapping = collections.namedtuple(
+    'FieldMapping', [
+        'description', 'syntax_rule', 'data_rules'])
 
 
 @register()
@@ -586,12 +599,11 @@ class certmapping(Backend):
         'certutil': CertutilFormatter,
     }
 
-    def __compose_template(self, profile_id, helper):
-        formatter = self.FORMATTERS[helper](self)
-
+    def __fetch_rules(self, profile_id, helper):
         syntax_rules = []
         field_mappings = api.Command.certfieldmappingrule_find(
             profile_id)['result']
+        field_mapping_templates = []
         for mapping in field_mappings:
             syntax_ruleset_name = mapping['ipacertsyntaxmapping'][0]['cn']
             syntax_ruleset = api.Command.certmappingrule_show(
@@ -602,35 +614,29 @@ class certmapping(Backend):
                 for name in data_ruleset_dns]
 
             syntax_rule = self.get_rule_for_helper(syntax_ruleset, helper)
-            data_rules = [formatter.prepare_data_rule(
-                self.get_rule_for_helper(ruleset, helper))
-                for ruleset in data_rulesets]
-            syntax_rules.append(formatter.prepare_syntax_rule(
-                syntax_rule, data_rules, syntax_ruleset_name))
+            data_rules = [self.get_rule_for_helper(ruleset, helper)
+                          for ruleset in data_rulesets]
+            field_mapping_templates.append(FieldMapping(
+                syntax_ruleset_name, syntax_rule, data_rules))
 
-        template = formatter.build_template(syntax_rules)
-        return template
+        return field_mapping_templates
 
     def get_request_data(self, principal, profile_id, helper, userdata):
         config = api.Command.config_show()['result']
         render_data = {'subject': principal, 'config': config,
                        'userdata': userdata}
 
-        template = self.__compose_template(profile_id, helper)
+        formatter = self.FORMATTERS[helper](self)
+        rules = self.__fetch_rules(profile_id, helper)
+        template = formatter.build_template(rules)
+
         try:
-            module = template.make_module(render_data)
+            script = template.render(**render_data)
         except jinja2.UndefinedError:
             self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
-        prompts = getattr(module, 'emptyprompts', {})
 
-        if prompts:
-            raise errors.RequirementError(
-                name=(_('User-specified items %(items)s')
-                      % {'items': prompts.keys()}))
-
-        script = unicode(module)
         return dict(script=script)
 
     def get_user_prompts(self, profile_id, helper):
@@ -646,12 +652,13 @@ class certmapping(Backend):
                     try:
                         var = ruleset['ipacertdataitem'][0]
                     except KeyError:
-                        # TODO(blipton): raise something
-                        pass
-
+                        raise errors.CertificateMappingError(reason=_(
+                            'Certificate mapping rule %(rule)s has a prompt but'
+                            ' no variable name set' % {'rule': name['cn']}))
                     if var in prompts:
-                        # TODO(blipton): raise something (duplicate var)
-                        pass
+                        raise errors.CertificateMappingError(reason=_(
+                            'More than one data rule in this profile prompts'
+                            ' for the %(item)s data item' % {'item': var}))
 
                     prompts[var] = ruleset['ipacertdataprompt'][0]
 
