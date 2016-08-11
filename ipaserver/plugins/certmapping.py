@@ -488,11 +488,11 @@ class Formatter(object):
         syntax_rules = []
         for description, syntax_rule, data_rules in rules:
             data_rules_prepared = [
-                self.prepare_data_rule(rule) for rule in data_rules]
-            syntax_rules.append(self.prepare_syntax_rule(
+                self._prepare_data_rule(rule) for rule in data_rules]
+            syntax_rules.append(self._prepare_syntax_rule(
                 syntax_rule, data_rules_prepared, description))
 
-        template_params = self.get_template_params(syntax_rules)
+        template_params = self._get_template_params(syntax_rules)
         base_template = self.jinja2.get_template(
             self.base_template_name, globals=self.passthrough_globals)
 
@@ -509,9 +509,6 @@ class Formatter(object):
 
         return combined_template
 
-    def get_template_params(self, syntax_rules):
-        raise NotImplementedError('Formatter class must be subclassed')
-
     def _wrap_rule(self, rule, rule_type):
         template = '{%% call ipa.%srule() %%}%s{%% endcall %%}' % (
             rule_type, rule)
@@ -524,10 +521,10 @@ class Formatter(object):
 
         return template
 
-    def prepare_data_rule(self, data_rule):
+    def _prepare_data_rule(self, data_rule):
         return self._wrap_rule(data_rule, 'data')
 
-    def prepare_syntax_rule(self, syntax_rule, data_rules, name):
+    def _prepare_syntax_rule(self, syntax_rule, data_rules, name):
         self.backend.debug('Syntax rule template: %s' % syntax_rule)
         template = self.jinja2.from_string(
             syntax_rule, globals=self.passthrough_globals)
@@ -545,9 +542,17 @@ class Formatter(object):
 
         return prepared_template
 
+    def _get_template_params(self, syntax_rules):
+        raise NotImplementedError('Formatter class must be subclassed')
+
 
 class OpenSSLFormatter(Formatter):
+    """Formatter class supporting the openssl command-line tool."""
+
     base_template_name = 'openssl_base.tmpl'
+
+    # Syntax rules are wrapped in this data structure, to keep track of whether
+    # each goes in the extension or the root section
     SyntaxRule = collections.namedtuple(
         'SyntaxRule', ['template', 'is_extension'])
 
@@ -555,7 +560,7 @@ class OpenSSLFormatter(Formatter):
         super(OpenSSLFormatter, self).__init__(backend)
         self._define_passthrough('openssl.section')
 
-    def get_template_params(self, syntax_rules):
+    def _get_template_params(self, syntax_rules):
         parameters = [rule.template for rule in syntax_rules
                       if not rule.is_extension]
         extensions = [rule.template for rule in syntax_rules
@@ -563,9 +568,9 @@ class OpenSSLFormatter(Formatter):
 
         return {'parameters': parameters, 'extensions': extensions}
 
-    def prepare_syntax_rule(self, syntax_rule, data_rules, name):
+    def _prepare_syntax_rule(self, syntax_rule, data_rules, name):
         """Overrides method to pull out whether rule is an extension or not."""
-        prepared_template = super(OpenSSLFormatter, self).prepare_syntax_rule(
+        prepared_template = super(OpenSSLFormatter, self)._prepare_syntax_rule(
             syntax_rule, data_rules, name)
 
         template = self.jinja2.from_string(
@@ -583,7 +588,7 @@ class OpenSSLFormatter(Formatter):
 class CertutilFormatter(Formatter):
     base_template_name = 'certutil_base.tmpl'
 
-    def get_template_params(self, syntax_rules):
+    def _get_template_params(self, syntax_rules):
         return {'options': syntax_rules}
 
 
