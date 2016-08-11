@@ -7,6 +7,7 @@ import jinja2
 import jinja2.ext
 import jinja2.sandbox
 import json
+import traceback
 
 from ipalib import api
 from ipalib import errors
@@ -492,6 +493,7 @@ class Formatter(object):
         try:
             combined_template_source = base_template.render(**base_template_params)
         except jinja2.UndefinedError:
+            self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
 
@@ -522,6 +524,7 @@ class Formatter(object):
             is_required = getattr(template.module, 'required', False)
             rendered = template.render(datarules=data_rules)
         except jinja2.UndefinedError:
+            self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
         prepared_template = self._wrap_rule(rendered, 'syntax', is_required, name)
@@ -557,6 +560,7 @@ class OpenSSLFormatter(Formatter):
             is_required = getattr(template.module, 'required', False)
             rendered = template.render(datarules=data_rules)
         except jinja2.UndefinedError:
+            self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
         prepared_template = self._wrap_rule(rendered, 'syntax', is_required, name)
@@ -610,6 +614,7 @@ class certmapping(Backend):
         try:
             module = template.make_module(render_data)
         except jinja2.UndefinedError:
+            self.debug(traceback.format_exc())
             raise errors.CertificateMappingError(reason=_(
                 'Template error when formatting certificate data'))
         prompts = getattr(module, 'emptyprompts', {})
