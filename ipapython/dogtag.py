@@ -149,7 +149,7 @@ INCLUDED_MAPPING_RULESETS = (
     MappingRuleset(
         u'dataUserSpecDN',
         u'Constructs a SubjectAltName entry from a DN provided by the user',
-        u'DN', u'Directory Name',
+        u'userdata.DN', u'Directory Name (e.g. CN=myuser,O=example.com)',
         [
             TransformationRule(
                 u'dataUserSpecDNOpenssl', u'dirName = {% call openssl.section() %}{{ipa.datafield(userdata.DN.split(",")|reverse|join("\n"))}}{% endcall %}',

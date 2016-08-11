@@ -683,8 +683,16 @@ class certmapping(Backend):
                         raise errors.CertificateMappingError(reason=_(
                             'More than one data rule in this profile prompts'
                             ' for the %(item)s data item' % {'item': var}))
+                    var_parts = var.split('.')
+                    if len(var_parts) != 2 or var_parts[0] != 'userdata':
+                        raise errors.CertificateMappingError(
+                            reason=_(
+                                'Format of variable name in rule %(rule)s is'
+                                ' incorrect. Rules that prompt for data must'
+                                ' use a variable "userdata.<var_name>"') %
+                            {'rule': name['cn']})
 
-                    prompts[var] = ruleset['ipacertdataprompt'][0]
+                    prompts[var_parts[1]] = ruleset['ipacertdataprompt'][0]
 
         return prompts
 
