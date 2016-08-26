@@ -109,6 +109,7 @@ BuildRequires:  dbus-python
 BuildRequires:  python-netifaces >= 0.10.4
 BuildRequires:  python-libsss_nss_idmap
 BuildRequires:  python-sss
+BuildRequires:  python-jinja2
 
 # Build dependencies for unit tests
 BuildRequires:  libcmocka-devel
